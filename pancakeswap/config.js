@@ -13,5 +13,15 @@ module.exports = {
         curvestand: "",
         neondevnet: "",
         neonmainnet: "",
+    },
+    token_A: {
+        curvestand: "0xEab7f4a34EB925A10699B106b9dE42780DFE5f80",
+        neondevnet: "",
+        neonmainnet: "",
+    },
+    token_B: {
+        curvestand: "",
+        neondevnet: "",
+        neonmainnet: "",
     }
 };

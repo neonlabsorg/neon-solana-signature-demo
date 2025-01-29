@@ -5,6 +5,7 @@
   "scripts": {
     "setup-curvestand": "npx hardhat run ./scripts/setup.js --network curvestand",
     "deploy-exchange-curvestand": "npx hardhat run ./scripts/deploy-pancakeswap-exchange.js --network curvestand",
+    "deploy-tokens-curvestand": "npx hardhat run ./scripts/deploy-tokens.js --network curvestand",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "maxpolizzo@gmail.com",
