@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "setup-curvestand": "npx hardhat run ./scripts/setup.js --network curvestand",
+    "deploy-exchange-curvestand": "npx hardhat run ./scripts/deploy-pancakeswap-exchange.js --network curvestand",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "maxpolizzo@gmail.com",
@@ -11,6 +12,8 @@
   "description": "A set of hardhat scripts to deploy Pancakeswap exchange contracts, ERC20ForSPL tokens and liquidity pools",
   "dependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@openzeppelin/contracts": "^4.2.0",
+    "@uniswap/lib": "^4.0.1-alpha",
     "dotenv": "^16.4.7",
     "hardhat": "^2.22.18"
   }

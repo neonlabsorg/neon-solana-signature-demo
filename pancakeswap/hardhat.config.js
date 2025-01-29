@@ -3,17 +3,53 @@ require("dotenv").config()
 
 module.exports = {
     solidity: {
-        compilers:[
+        compilers: [
             {
-                version: '0.8.28',
+                version: "0.8.4",
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 200
-                    }
-                }
-            }
-        ]
+                        runs: 99999,
+                    },
+                },
+            },
+            {
+                version: "0.6.6",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 99999,
+                    },
+                },
+            },
+            {
+                version: "0.5.16",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 99999,
+                    },
+                },
+            },
+            {
+                version: "0.4.26",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 99999,
+                    },
+                },
+            },
+            {
+                version: "0.4.18",
+                settings: {
+                    optimizer: {
+                        enabled: true,
+                        runs: 99999,
+                    },
+                },
+            },
+        ],
     },
     networks: {
         neondevnet: {
