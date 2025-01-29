@@ -1,0 +1,17 @@
+{
+  "name": "neon-pancakeswap-demo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "setup-curvestand": "npx hardhat run ./scripts/setup.js --network curvestand",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "maxpolizzo@gmail.com",
+  "license": "MIT",
+  "description": "A set of hardhat scripts to deploy Pancakeswap exchange contracts, ERC20ForSPL tokens and liquidity pools",
+  "dependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.22.18"
+  }
+}
