@@ -58,7 +58,7 @@ async function main() {
         deployer,
         pancakeExchangeAddresses.WNEONAddress,
         tokenAAddress,
-        12000,
+        2000,
         7333
     )
 

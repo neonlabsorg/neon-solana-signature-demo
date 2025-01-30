@@ -54,7 +54,7 @@ module.exports = {
     networks: {
         neondevnet: {
             url: "https://devnet.neonevm.org",
-            accounts: [process.env.DEPLOYER_KEY, process.env.USER1_KEY, process.env.USER2_KEY, process.env.USER3_KEY],
+            accounts: [process.env.DEPLOYER_KEY],
             chainId: 245022926,
             allowUnlimitedContractSize: false,
             gasMultiplier: 2,
@@ -63,7 +63,7 @@ module.exports = {
         },
         neonmainnet: {
             url: "https://neon-proxy-mainnet.solana.p2p.org",
-            accounts: [process.env.DEPLOYER_KEY, process.env.USER1_KEY, process.env.USER2_KEY, process.env.USER3_KEY],
+            accounts: [process.env.DEPLOYER_KEY],
             chainId: 245022934,
             allowUnlimitedContractSize: false,
             gas: "auto",
@@ -71,7 +71,7 @@ module.exports = {
         },
         curvestand: {
             url: process.env.NEON_EVM_NODE,
-            accounts: [process.env.DEPLOYER_KEY, process.env.USER1_KEY, process.env.USER2_KEY, process.env.USER3_KEY],
+            accounts: [process.env.DEPLOYER_KEY],
             allowUnlimitedContractSize: false,
             gasMultiplier: 2,
             maxFeePerGas: 10000,
