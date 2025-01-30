@@ -25,6 +25,10 @@ async function main() {
     }
     console.log("\nDeployer balance: " + ethers.formatUnits(deployerBalance.toString(), 18) + " NEON")
 
+    await deployPancakeswapExchange(deployer)
+}
+
+async function deployPancakeswapExchange(deployer) {
     let WNEONAddress
     if (!config.WNEON[network.name]) {
         console.log("\nDeploying WNEON contract to " + network.name + "...")
@@ -38,7 +42,7 @@ async function main() {
         WNEONAddress = config.WNEON[network.name]
     }
 
-    let pancakeFactoryAddress
+    let pancakeFactoryAddress, pancakeRouterAddress
     if (!config.pancakeFactory[network.name]) {
         console.log("\nDeploying PancakeFactory contract to " + network.name + "...")
         const pancakeFactoryContractFactory = await ethers.getContractFactory("PancakeFactory")
@@ -60,15 +64,24 @@ async function main() {
         )
         await pancakeRouter.waitForDeployment()
         console.log("PancakeRouter contract deployed to: " + pancakeRouter.target)
+        pancakeRouterAddress = pancakeRouter.target
     } else {
         console.log("\nPancakeRouter contract already deployed to: " + config.pancakeRouter[network.name])
+        pancakeRouterAddress = config.pancakeRouter[network.name]
     }
-    console.log("\n")
+
+    return { pancakeFactoryAddress, pancakeRouterAddress, WNEONAddress }
 }
 
+/*
 main()
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error)
         process.exit(1)
     })
+*/
+
+module.exports = {
+    deployPancakeswapExchange
+}

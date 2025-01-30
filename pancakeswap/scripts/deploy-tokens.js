@@ -25,12 +25,10 @@ async function main() {
     }
     console.log("\nDeployer balance: " + ethers.formatUnits(deployerBalance.toString(), 18) + " NEON")
 
-    const ERC20ForSPLMintableContractFactory = await ethers.getContractFactory("ERC20ForSplMintable")
     const mintAuthority = deployer.address // Set deployer as mint authority
 
     await deployERC20ForSPLMintable(
         "token_A",
-        ERC20ForSPLMintableContractFactory,
         "Token A",
         "TOKEN_A",
         9,
@@ -39,7 +37,6 @@ async function main() {
 
     await deployERC20ForSPLMintable(
         "token_B",
-        ERC20ForSPLMintableContractFactory,
         "Token B",
         "TOKEN_B",
         12,
@@ -51,12 +48,13 @@ async function main() {
 
 async function deployERC20ForSPLMintable(
     tokenKey,
-    ERC20ForSPLMintableContractFactory,
     name,
     symbol,
     decimals,
     mintAuthority
 ) {
+    const ERC20ForSPLMintableContractFactory = await ethers.getContractFactory("ERC20ForSplMintable")
+
     let token
     if (!config[tokenKey][network.name]) {
         console.log("\nDeploying ERC20ForSPLMintable contract to " + network.name + "...")
@@ -86,9 +84,15 @@ async function deployERC20ForSPLMintable(
     return tokenAddress
 }
 
+/*
 main()
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error)
         process.exit(1)
     })
+*/
+
+module.exports = {
+    deployERC20ForSPLMintable
+}

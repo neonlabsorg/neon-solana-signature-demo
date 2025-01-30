@@ -29,103 +29,140 @@ async function main() {
         console.log("\nPancakeFactory contract address:" + config.pancakeFactory[network.name])
         console.log("\nPancakeRouter contract address:" + config.pancakeRouter[network.name])
 
-        await createPairAndAddLiquidity(deployer, "WNEON", "token_A", 1000, 10000)
-        await createPairAndAddLiquidity(deployer, "token_A", "token_B", 5000, 20000)
-
-    } else { console.log("\nMissing PancakeFactory and/or PancakeRouter address(es) in config file") }
+        let tokenAKey = "WNEON"
+        let tokenBKey = "token_A"
+        if (config[tokenAKey][network.name] && config[tokenBKey][network.name]) {
+            await createPairAndAddLiquidity(
+                config.pancakeFactory[network.name],
+                config.pancakeRouter[network.name],
+                deployer,
+                config[tokenAKey][network.name],
+                config[tokenBKey][network.name],
+                1000,
+                10000
+            )
+        } else {
+            console.log("\nMissing " + tokenAKey + " and/or " + tokenBKey + " address(es) in config file")
+        }
+        tokenAKey = "token_A"
+        tokenBKey = "token_B"
+        if (config[tokenAKey][network.name] && config[tokenBKey][network.name]) {
+            await createPairAndAddLiquidity(
+                config.pancakeFactory[network.name],
+                config.pancakeRouter[network.name],
+                deployer,
+                config[tokenAKey][network.name],
+                config[tokenBKey][network.name],
+                5000,
+                20000
+            )
+        } else {
+            console.log("\nMissing " + tokenAKey + " and/or " + tokenBKey + " address(es) in config file")
+        }
+    } else {
+        console.log("\nMissing PancakeFactory and/or PancakeRouter address(es) in config file")
+    }
     console.log("\n")
 }
 
-async function createPairAndAddLiquidity(deployer, tokenAKey, tokenBKey, amountA, amountB) {
-    if (config[tokenAKey][network.name] && config[tokenBKey][network.name]) {
-        const TokenAContractFactory = tokenAKey === "WNEON"
-            ? await ethers.getContractFactory("WNEON")
-            : await ethers.getContractFactory("ERC20ForSplMintable")
-        const TokenBContractFactory = tokenBKey === "WNEON"
-            ? await ethers.getContractFactory("WNEON")
-            : await ethers.getContractFactory("ERC20ForSplMintable")
+async function createPairAndAddLiquidity(
+    pancakeFactoryAddress,
+    pancakeRouterAddress,
+    deployer,
+    tokenAAddress,
+    tokenBAddress,
+    amountA,
+    amountB
+) {
+    const pancakeRouterContractFactory = await ethers.getContractFactory("PancakeRouter")
+    const pancakeRouter = pancakeRouterContractFactory.attach(pancakeRouterAddress)
+    const WNEONAddress = await pancakeRouter.WETH()
+    const TokenAContractFactory = tokenAAddress === WNEONAddress
+        ? await ethers.getContractFactory("WNEON")
+        : await ethers.getContractFactory("ERC20ForSplMintable")
+    const TokenBContractFactory = tokenBAddress === WNEONAddress
+        ? await ethers.getContractFactory("WNEON")
+        : await ethers.getContractFactory("ERC20ForSplMintable")
 
-        const tokenA = TokenAContractFactory.attach(config[tokenAKey][network.name])
-        const tokenB = TokenBContractFactory.attach(config[tokenBKey][network.name])
-        const tokenASymbol = await tokenA.symbol()
-        const tokenBSymbol = await tokenB.symbol()
-        const tokenADecimals = await tokenA.decimals()
-        const tokenBDecimals = await tokenB.decimals()
-        const tokenAAmount = ethers.parseUnits(amountA.toString(), tokenADecimals)
-        const tokenBAmount = ethers.parseUnits(amountB.toString(), tokenBDecimals)
+    const tokenA = TokenAContractFactory.attach(tokenAAddress)
+    const tokenB = TokenBContractFactory.attach(tokenBAddress)
+    const tokenASymbol = await tokenA.symbol()
+    const tokenBSymbol = await tokenB.symbol()
+    const tokenADecimals = await tokenA.decimals()
+    const tokenBDecimals = await tokenB.decimals()
+    const tokenAAmount = ethers.parseUnits(amountA.toString(), tokenADecimals)
+    const tokenBAmount = ethers.parseUnits(amountB.toString(), tokenBDecimals)
 
 
-        await createPair(
-            config.pancakeFactory[network.name],
-            config[tokenAKey][network.name],
-            config[tokenBKey][network.name],
-            tokenASymbol,
-            tokenBSymbol
-        )
+    await createPair(
+        pancakeFactoryAddress,
+        tokenAAddress,
+        tokenBAddress,
+        tokenASymbol,
+        tokenBSymbol
+    )
 
-        // Mint token A to deployer if needed
-        let balanceA = await tokenA.balanceOf(deployer.address)
-        if(balanceA < tokenAAmount) {
-            let amountToMint = BigInt(tokenAAmount) - BigInt(balanceA)
-            if(tokenAKey === "WNEON") {
-                await tokenA.deposit({ value: amountToMint })
-            } else {
-                await tokenA.mint(deployer.address, amountToMint)
-            }
-            await asyncTimeout(3000)
-            console.log("\nMinted " +  ethers.formatUnits(amountToMint.toString(), tokenADecimals) + " " + tokenASymbol + " to deployer address " + deployer.address)
-            balanceA = await tokenA.balanceOf(deployer.address)
+    // Mint token A to deployer if needed
+    let balanceA = await tokenA.balanceOf(deployer.address)
+    if(balanceA < tokenAAmount) {
+        let amountToMint = BigInt(tokenAAmount) - BigInt(balanceA)
+        if(tokenAAddress === WNEONAddress) {
+            await tokenA.deposit({ value: amountToMint })
+        } else {
+            await tokenA.mint(deployer.address, amountToMint)
         }
-        console.log("\nDeployer " + tokenASymbol + " balance: " + ethers.formatUnits(balanceA.toString(), tokenADecimals))
-
-        // Approve router to spend token A on behalf of deployer if needed
-        let allowanceA = await tokenA.allowance(deployer.address, config.pancakeRouter[network.name])
-        if(allowanceA < tokenAAmount) {
-            await tokenA.approve(config.pancakeRouter[network.name], tokenAAmount)
-            await asyncTimeout(3000)
-            allowanceA = await tokenA.allowance(deployer.address, config.pancakeRouter[network.name])
-            console.log("\nApproved PancakeRouter to spend " + ethers.formatUnits(allowanceA.toString(), tokenADecimals) + " " + tokenASymbol + " on behalf of deployer")
-        }
-        console.log("\nPancakeRouter " + tokenASymbol + " allowance: " + ethers.formatUnits(allowanceA.toString(), tokenADecimals))
-
-        // Mint token B to deployer if needed
-        let balanceB = await tokenB.balanceOf(deployer.address)
-        if(balanceB < tokenBAmount) {
-            let amountToMint = BigInt(tokenBAmount) - BigInt(balanceB)
-            if(tokenBKey === "WNEON") {
-                await tokenB.deposit({ value: amountToMint })
-            } else {
-                await tokenB.mint(deployer.address, amountToMint)
-            }
-            await asyncTimeout(3000)
-            console.log("\nMinted " +  ethers.formatUnits(amountToMint.toString(), tokenBDecimals) + " " + tokenBSymbol + " to deployer address " + deployer.address)
-            balanceB = await tokenB.balanceOf(deployer.address)
-        }
-        console.log("\nDeployer " + tokenBSymbol + " balance: " + ethers.formatUnits(balanceB.toString(), tokenBDecimals))
-
-        // Approve router to spend token B on behalf of deployer if needed
-        let allowanceB = await tokenB.allowance(deployer.address, config.pancakeRouter[network.name])
-        if(allowanceB < tokenBAmount) {
-            await tokenB.approve(config.pancakeRouter[network.name], tokenBAmount)
-            await asyncTimeout(3000)
-            allowanceB = await tokenB.allowance(deployer.address, config.pancakeRouter[network.name])
-            console.log("\nApproved PancakeRouter to spend " + ethers.formatUnits(allowanceB.toString(), tokenBDecimals) + " " + tokenBSymbol + " on behalf of deployer")
-        }
-        console.log("\nPancakeRouter " + tokenBSymbol + " allowance: " + ethers.formatUnits(allowanceB.toString(), tokenBDecimals))
-
-        await addLiquidity(
-            config.pancakeRouter[network.name],
-            config.pancakeFactory[network.name],
-            config[tokenAKey][network.name],
-            config[tokenBKey][network.name],
-            tokenASymbol,
-            tokenBSymbol,
-            tokenAAmount,
-            tokenBAmount,
-            deployer.address
-        )
+        await asyncTimeout(3000)
+        console.log("\nMinted " +  ethers.formatUnits(amountToMint.toString(), tokenADecimals) + " " + tokenASymbol + " to deployer address " + deployer.address)
+        balanceA = await tokenA.balanceOf(deployer.address)
     }
-    else { console.log("\nMissing token address(es) in config file") }
+    console.log("\nDeployer " + tokenASymbol + " balance: " + ethers.formatUnits(balanceA.toString(), tokenADecimals))
+
+    // Approve router to spend token A on behalf of deployer if needed
+    let allowanceA = await tokenA.allowance(deployer.address, pancakeRouterAddress)
+    if(allowanceA < tokenAAmount) {
+        await tokenA.approve(pancakeRouterAddress, tokenAAmount)
+        await asyncTimeout(3000)
+        allowanceA = await tokenA.allowance(deployer.address, pancakeRouterAddress)
+        console.log("\nApproved PancakeRouter to spend " + ethers.formatUnits(allowanceA.toString(), tokenADecimals) + " " + tokenASymbol + " on behalf of deployer")
+    }
+    console.log("\nPancakeRouter " + tokenASymbol + " allowance: " + ethers.formatUnits(allowanceA.toString(), tokenADecimals))
+
+    // Mint token B to deployer if needed
+    let balanceB = await tokenB.balanceOf(deployer.address)
+    if(balanceB < tokenBAmount) {
+        let amountToMint = BigInt(tokenBAmount) - BigInt(balanceB)
+        if(tokenBAddress === WNEONAddress) {
+            await tokenB.deposit({ value: amountToMint })
+        } else {
+            await tokenB.mint(deployer.address, amountToMint)
+        }
+        await asyncTimeout(3000)
+        console.log("\nMinted " +  ethers.formatUnits(amountToMint.toString(), tokenBDecimals) + " " + tokenBSymbol + " to deployer address " + deployer.address)
+        balanceB = await tokenB.balanceOf(deployer.address)
+    }
+    console.log("\nDeployer " + tokenBSymbol + " balance: " + ethers.formatUnits(balanceB.toString(), tokenBDecimals))
+
+    // Approve router to spend token B on behalf of deployer if needed
+    let allowanceB = await tokenB.allowance(deployer.address, pancakeRouterAddress)
+    if(allowanceB < tokenBAmount) {
+        await tokenB.approve(pancakeRouterAddress, tokenBAmount)
+        await asyncTimeout(3000)
+        allowanceB = await tokenB.allowance(deployer.address, pancakeRouterAddress)
+        console.log("\nApproved PancakeRouter to spend " + ethers.formatUnits(allowanceB.toString(), tokenBDecimals) + " " + tokenBSymbol + " on behalf of deployer")
+    }
+    console.log("\nPancakeRouter " + tokenBSymbol + " allowance: " + ethers.formatUnits(allowanceB.toString(), tokenBDecimals))
+
+    await addLiquidity(
+        pancakeFactoryAddress,
+        pancakeRouterAddress,
+        tokenAAddress,
+        tokenBAddress,
+        tokenASymbol,
+        tokenBSymbol,
+        tokenAAmount,
+        tokenBAmount,
+        deployer.address
+    )
 }
 
 async function createPair(
@@ -151,8 +188,8 @@ async function createPair(
 }
 
 async function addLiquidity(
-    pancakeRouterAddress,
     pancakeFactoryAddress,
+    pancakeRouterAddress,
     tokenAAddress,
     tokenBAddress,
     tokenASymbol,
@@ -194,9 +231,15 @@ async function addLiquidity(
     console.log("--> LP balance: " + ethers.formatUnits(LPBalance.toString(), pairDecimals))
 }
 
+/*
 main()
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error)
         process.exit(1)
     })
+*/
+
+module.exports = {
+    createPairAndAddLiquidity
+}
