@@ -14,6 +14,7 @@
     "@openzeppelin/contracts": "^4.2.0",
     "@uniswap/lib": "^4.0.1-alpha",
     "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
     "hardhat": "^2.22.18"
   }
 }
