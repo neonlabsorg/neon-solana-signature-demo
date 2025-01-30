@@ -1,0 +1,202 @@
+const { ethers, network, run } = require("hardhat")
+const config = require("../config")
+const { asyncTimeout, airdropNEON } = require("./utils")
+
+async function main() {
+    await run("compile")
+
+    console.log("\nNetwork name: " + network.name)
+
+    if (!process.env.DEPLOYER_KEY) {
+        throw new Error("\nMissing private key: DEPLOYER_KEY")
+    }
+
+    const deployer = (await ethers.getSigners())[0]
+    console.log("\nDeployer address: " + deployer.address)
+
+    let deployerBalance = BigInt(await ethers.provider.getBalance(deployer.address))
+    const minBalance = ethers.parseUnits("10000", 18) // 10000 NEON
+    if(
+        deployerBalance < minBalance &&
+        parseInt(ethers.formatUnits((minBalance - deployerBalance).toString(), 18)) > 0
+    ) {
+        await airdropNEON(deployer.address, parseInt(ethers.formatUnits((minBalance - deployerBalance).toString(), 18)))
+        deployerBalance = BigInt(await ethers.provider.getBalance(deployer.address))
+    }
+    console.log("\nDeployer balance: " + ethers.formatUnits(deployerBalance.toString(), 18) + " NEON")
+
+    if (config.pancakeFactory[network.name] && config.pancakeRouter[network.name]) {
+        console.log("\nPancakeFactory contract address:" + config.pancakeFactory[network.name])
+        console.log("\nPancakeRouter contract address:" + config.pancakeRouter[network.name])
+
+        await createPairAndAddLiquidity(deployer, "WNEON", "token_A", 1000, 10000)
+        await createPairAndAddLiquidity(deployer, "token_A", "token_B", 5000, 20000)
+
+    } else { console.log("\nMissing PancakeFactory and/or PancakeRouter address(es) in config file") }
+    console.log("\n")
+}
+
+async function createPairAndAddLiquidity(deployer, tokenAKey, tokenBKey, amountA, amountB) {
+    if (config[tokenAKey][network.name] && config[tokenBKey][network.name]) {
+        const TokenAContractFactory = tokenAKey === "WNEON"
+            ? await ethers.getContractFactory("WNEON")
+            : await ethers.getContractFactory("ERC20ForSplMintable")
+        const TokenBContractFactory = tokenBKey === "WNEON"
+            ? await ethers.getContractFactory("WNEON")
+            : await ethers.getContractFactory("ERC20ForSplMintable")
+
+        const tokenA = TokenAContractFactory.attach(config[tokenAKey][network.name])
+        const tokenB = TokenBContractFactory.attach(config[tokenBKey][network.name])
+        const tokenASymbol = await tokenA.symbol()
+        const tokenBSymbol = await tokenB.symbol()
+        const tokenADecimals = await tokenA.decimals()
+        const tokenBDecimals = await tokenB.decimals()
+        const tokenAAmount = ethers.parseUnits(amountA.toString(), tokenADecimals)
+        const tokenBAmount = ethers.parseUnits(amountB.toString(), tokenBDecimals)
+
+
+        await createPair(
+            config.pancakeFactory[network.name],
+            config[tokenAKey][network.name],
+            config[tokenBKey][network.name],
+            tokenASymbol,
+            tokenBSymbol
+        )
+
+        // Mint token A to deployer if needed
+        let balanceA = await tokenA.balanceOf(deployer.address)
+        if(balanceA < tokenAAmount) {
+            let amountToMint = BigInt(tokenAAmount) - BigInt(balanceA)
+            if(tokenAKey === "WNEON") {
+                await tokenA.deposit({ value: amountToMint })
+            } else {
+                await tokenA.mint(deployer.address, amountToMint)
+            }
+            await asyncTimeout(3000)
+            console.log("\nMinted " +  ethers.formatUnits(amountToMint.toString(), tokenADecimals) + " " + tokenASymbol + " to deployer address " + deployer.address)
+            balanceA = await tokenA.balanceOf(deployer.address)
+        }
+        console.log("\nDeployer " + tokenASymbol + " balance: " + ethers.formatUnits(balanceA.toString(), tokenADecimals))
+
+        // Approve router to spend token A on behalf of deployer if needed
+        let allowanceA = await tokenA.allowance(deployer.address, config.pancakeRouter[network.name])
+        if(allowanceA < tokenAAmount) {
+            await tokenA.approve(config.pancakeRouter[network.name], tokenAAmount)
+            await asyncTimeout(3000)
+            allowanceA = await tokenA.allowance(deployer.address, config.pancakeRouter[network.name])
+            console.log("\nApproved PancakeRouter to spend " + ethers.formatUnits(allowanceA.toString(), tokenADecimals) + " " + tokenASymbol + " on behalf of deployer")
+        }
+        console.log("\nPancakeRouter " + tokenASymbol + " allowance: " + ethers.formatUnits(allowanceA.toString(), tokenADecimals))
+
+        // Mint token B to deployer if needed
+        let balanceB = await tokenB.balanceOf(deployer.address)
+        if(balanceB < tokenBAmount) {
+            let amountToMint = BigInt(tokenBAmount) - BigInt(balanceB)
+            if(tokenBKey === "WNEON") {
+                await tokenB.deposit({ value: amountToMint })
+            } else {
+                await tokenB.mint(deployer.address, amountToMint)
+            }
+            await asyncTimeout(3000)
+            console.log("\nMinted " +  ethers.formatUnits(amountToMint.toString(), tokenBDecimals) + " " + tokenBSymbol + " to deployer address " + deployer.address)
+            balanceB = await tokenB.balanceOf(deployer.address)
+        }
+        console.log("\nDeployer " + tokenBSymbol + " balance: " + ethers.formatUnits(balanceB.toString(), tokenBDecimals))
+
+        // Approve router to spend token B on behalf of deployer if needed
+        let allowanceB = await tokenB.allowance(deployer.address, config.pancakeRouter[network.name])
+        if(allowanceB < tokenBAmount) {
+            await tokenB.approve(config.pancakeRouter[network.name], tokenBAmount)
+            await asyncTimeout(3000)
+            allowanceB = await tokenB.allowance(deployer.address, config.pancakeRouter[network.name])
+            console.log("\nApproved PancakeRouter to spend " + ethers.formatUnits(allowanceB.toString(), tokenBDecimals) + " " + tokenBSymbol + " on behalf of deployer")
+        }
+        console.log("\nPancakeRouter " + tokenBSymbol + " allowance: " + ethers.formatUnits(allowanceB.toString(), tokenBDecimals))
+
+        await addLiquidity(
+            config.pancakeRouter[network.name],
+            config.pancakeFactory[network.name],
+            config[tokenAKey][network.name],
+            config[tokenBKey][network.name],
+            tokenASymbol,
+            tokenBSymbol,
+            tokenAAmount,
+            tokenBAmount,
+            deployer.address
+        )
+    }
+    else { console.log("\nMissing token address(es) in config file") }
+}
+
+async function createPair(
+    pancakeFactoryAddress,
+    tokenAAddress,
+    tokenBAddress,
+    tokenASymbol,
+    tokenBSymbol
+) {
+    const pancakeFactoryContractFactory = await ethers.getContractFactory("PancakeFactory")
+    const pancakeFactory = pancakeFactoryContractFactory.attach(pancakeFactoryAddress)
+    let pairAddress = await pancakeFactory.getPair(tokenAAddress, tokenBAddress)
+    if(!pairAddress || pairAddress === "0x0000000000000000000000000000000000000000") {
+        await pancakeFactory.createPair(tokenAAddress, tokenBAddress)
+        await asyncTimeout(3000)
+        pairAddress = await pancakeFactory.getPair(tokenAAddress, tokenBAddress)
+        console.log("\nDeployed new " + tokenASymbol + "-" + tokenBSymbol + " pair at address: " + pairAddress)
+    } else {
+        console.log("\n" + tokenASymbol + "-" + tokenBSymbol + " pair already exists at address: " + pairAddress)
+    }
+
+    return pairAddress
+}
+
+async function addLiquidity(
+    pancakeRouterAddress,
+    pancakeFactoryAddress,
+    tokenAAddress,
+    tokenBAddress,
+    tokenASymbol,
+    tokenBSymbol,
+    tokenAAmount,
+    tokenBAmount,
+    toAddress
+) {
+    const pancakeRouterContractFactory = await ethers.getContractFactory("PancakeRouter")
+    const pancakeRouter = pancakeRouterContractFactory.attach(pancakeRouterAddress)
+
+    await pancakeRouter.addLiquidity(
+        tokenAAddress,
+        tokenBAddress,
+        tokenAAmount,
+        tokenBAmount,
+        tokenAAmount,
+        tokenBAmount,
+        toAddress,
+        Date.now() + 1000000000
+    )
+    await asyncTimeout(3000)
+    console.log("\nAdded liquidity to " + tokenASymbol + "-" + tokenBSymbol + " PancakePair")
+
+    const pancakeFactoryContractFactory = await ethers.getContractFactory("PancakeFactory")
+    const pancakeFactory = pancakeFactoryContractFactory.attach(pancakeFactoryAddress)
+    const pairAddress = await pancakeFactory.getPair(tokenAAddress, tokenBAddress)
+
+    const pancakePairContractFactory = await ethers.getContractFactory("PancakePair")
+    const pancakePair = pancakePairContractFactory.attach(pairAddress)
+    const pairReserves = await pancakePair.getReserves()
+    console.log("--> Pair reserves: [" + pairReserves[0] + ", " + pairReserves[1] + "]")
+
+    const pancakeERC20ContractFactory = await ethers.getContractFactory("PancakeERC20")
+    const pancakePairERC20 = pancakeERC20ContractFactory.attach(pairAddress)
+    const pairDecimals = await pancakePairERC20.decimals()
+    const LPBalance = await pancakePairERC20.balanceOf(toAddress)
+    console.log("--> LP address: " + toAddress)
+    console.log("--> LP balance: " + ethers.formatUnits(LPBalance.toString(), pairDecimals))
+}
+
+main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+        console.error(error)
+        process.exit(1)
+    })
