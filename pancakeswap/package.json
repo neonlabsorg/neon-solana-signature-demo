@@ -12,6 +12,8 @@
   "dependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@openzeppelin/contracts": "^4.2.0",
+    "@solana/spl-token": "^0.4.12",
+    "@solana/web3.js": "^1.98.0",
     "@uniswap/lib": "^4.0.1-alpha",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
