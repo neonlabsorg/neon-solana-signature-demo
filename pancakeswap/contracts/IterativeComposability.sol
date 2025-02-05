@@ -21,44 +21,18 @@ contract IterativeComposability {
         return CALL_SOLANA.getNeonAddress(_address);
     }
 
+    function getSolanaPDA(bytes32 program_id, bytes memory seeds) public view returns(bytes32) {
+        return CALL_SOLANA.getSolanaPDA(program_id, seeds);
+    }
+
     function testIterativeComposability(
         uint8 swapsCount,
         address router,
         address[] calldata path,
-        bytes memory createAccountWithSeedIx,
-        uint64 createAccountWithSeedLamports,
-        bytes memory initializeMint2Ix,
-        uint64 initializeMint2Lamports
+        bytes memory seed,
+        uint8 decimals
     ) external payable {
-        // EVM logic to trigger iterative execution
-        for(uint8 i = 0; i < swapsCount; i++) {
-            IPancakeRouter01(router).swapExactETHForTokens
-            {value: msg.value / swapsCount}
-            (
-                0,
-                path,
-                msg.sender,
-                block.timestamp
-            );
-        }
 
-        // Composability requests (createAccountWithSeed + initializeMint2)
-        CALL_SOLANA.execute(createAccountWithSeedLamports, createAccountWithSeedIx);
-        CALL_SOLANA.execute(initializeMint2Lamports, initializeMint2Ix);
-    }
-
-    function testIterativeComposabilityWithIxFormatting(
-        uint8 swapsCount,
-        address router,
-        address[] calldata path,
-        bytes32[] memory createAccountWithSeedIxAccounts,
-        bool[] memory createAccountWithSeedIxIsSigner,
-        bool[] memory createAccountWithSeedIxIsWritable,
-        bytes memory createAccountWithSeedIxData,
-        uint64 createAccountWithSeedLamports,
-        bytes32 initializeMint2IxAccount,
-        bytes memory initializeMint2IxData
-    ) external payable {
         // EVM logic to trigger iterative execution
         for(uint8 i = 0; i < swapsCount; i++) {
             IPancakeRouter01(router).swapExactETHForTokens
@@ -71,28 +45,104 @@ contract IterativeComposability {
             );
         }
 
-        // Composability requests (createAccountWithSeed + initializeMint2)
+        // Composability requests
+
+        // Format createAccountWithSeed instruction
+        (   bytes32[] memory accounts,
+            bool[] memory isSigner,
+            bool[] memory isWritable,
+            bytes memory data
+        ) = formatCreateAccountWithSeedInstruction(seed);
+        // Prepare createAccountWithSeed instruction
         bytes memory createAccountWithSeedIx = CallSolanaHelperLib.prepareSolanaInstruction(
             SYSTEM_PROGRAM_ID,
-            createAccountWithSeedIxAccounts,
-            createAccountWithSeedIxIsSigner,
-            createAccountWithSeedIxIsWritable,
-            createAccountWithSeedIxData
+            accounts,
+            isSigner,
+            isWritable,
+            data
         );
-        bytes32[] memory initializeMint2IxAccounts = new bytes32[](1);
-        initializeMint2IxAccounts[0] = initializeMint2IxAccount;
-        bool[] memory initializeMint2IxIsSigner = new bool[](1);
-        initializeMint2IxIsSigner[0] = false;
-        bool[] memory initializeMint2IxIsWritable = new bool[](1);
-        initializeMint2IxIsWritable[0] = true;
+        // Execute createAccountWithSeed instruction, sending 1461600 lamports
+        CALL_SOLANA.execute(1461600, createAccountWithSeedIx);
+
+        // Format initializeMint2 instruction
+        (   accounts,
+            isSigner,
+            isWritable,
+            data
+        ) = formatInitializeMint2Instruction(decimals, accounts[1], accounts[1]);
+        // Prepare initializeMint2 instruction
         bytes memory initializeMint2Ix = CallSolanaHelperLib.prepareSolanaInstruction(
             TOKEN_PROGRAM_ID,
-            initializeMint2IxAccounts,
-            initializeMint2IxIsSigner,
-            initializeMint2IxIsWritable,
-            initializeMint2IxData
+            accounts,
+            isSigner,
+            isWritable,
+            data
         );
-        CALL_SOLANA.execute(createAccountWithSeedLamports, createAccountWithSeedIx);
+        // Execute initializeMint2 instruction
         CALL_SOLANA.execute(0, initializeMint2Ix);
+    }
+
+    function formatCreateAccountWithSeedInstruction(
+        bytes memory seed
+    ) public view returns (
+        bytes32[] memory accounts,
+        bool[] memory isSigner,
+        bool[] memory isWritable,
+        bytes memory data
+    ) {
+        bytes32 basePubKey = CALL_SOLANA.getNeonAddress(address(this));
+
+        accounts = new bytes32[](3);
+        accounts[0] = CALL_SOLANA.getPayer();
+        accounts[1] = sha256(abi.encodePacked(basePubKey, seed, TOKEN_PROGRAM_ID)); // Calculate createWithSeed account
+        accounts[2] = basePubKey;
+
+        isSigner = new bool[](3);
+        isSigner[0] = true;
+        isSigner[1] = false;
+        isSigner[2] = true;
+
+        isWritable = new bool[](3);
+        isWritable[0] = true;
+        isWritable[1] = true;
+        isWritable[2] = false;
+
+        data = abi.encodePacked(
+            bytes4(0x03000000), // Instruction variant
+            basePubKey, // Base public key used for accout  creation
+            bytes8(0x1100000000000000), // Temporary: figure out how to get seed's bytes length in little-endian format
+            seed,
+            bytes8(0x604d160000000000), // Rent exemption balance for created account (1461600 lamports, right-padded little endian)
+            bytes8(0x5200000000000000), // Storage space for created account (82 bytes, right-padded little endian)
+            TOKEN_PROGRAM_ID // SPL Token program id
+        );
+    }
+
+    function formatInitializeMint2Instruction(
+        uint8 decimals,
+        bytes32 mintAuthority,
+        bytes32 freezeAuthority
+    ) public view returns (
+        bytes32[] memory accounts,
+        bool[] memory isSigner,
+        bool[] memory isWritable,
+        bytes memory data
+    ) {
+        accounts = new bytes32[](1);
+        accounts[0] = mintAuthority;
+
+        isSigner = new bool[](1);
+        isSigner[0] = false;
+
+        isWritable = new bool[](1);
+        isWritable[0] = true;
+
+        data = abi.encodePacked(
+            bytes1(0x14), // Instruction variant
+            bytes1(decimals), // Token's decimals value
+            mintAuthority, // Token's mint authority account
+            bytes1(0x01), // Not sure what this byte is for
+            freezeAuthority // Token's freeze authority account
+        );
     }
 }
