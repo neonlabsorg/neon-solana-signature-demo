@@ -25,6 +25,49 @@ contract IterativeComposability {
         return CALL_SOLANA.getSolanaPDA(program_id, seeds);
     }
 
+    function getResourceAddress(bytes memory seed) public view returns(bytes32) {
+        return CALL_SOLANA.getResourceAddress(keccak256(seed));
+    }
+
+    function getCreateWithSeedAccount(bytes32 basePubKey, bytes memory seed) public view returns(bytes32) {
+        return sha256(abi.encodePacked(basePubKey, seed, TOKEN_PROGRAM_ID));
+    }
+
+    function testCreateTokenMintResource(bytes memory seed, uint8 decimals) external payable {
+        // Create SPL token mint account
+        bytes32 tokenMint = CALL_SOLANA.createResource(
+            keccak256(seed), // salt
+            82, // space
+            1461600, // lamports
+            TOKEN_PROGRAM_ID // Owner must be SPL Token program
+        );
+
+        bytes32 authority = CALL_SOLANA.getNeonAddress(address(this));
+        // Format initializeMint2 instruction
+        (   bytes32[] memory accounts,
+            bool[] memory isSigner,
+            bool[] memory isWritable,
+            bytes memory data
+        ) = formatInitializeMint2Instruction(
+            decimals,
+            tokenMint,
+            authority,
+            authority
+        );
+
+        // Prepare initializeMint2 instruction
+        bytes memory initializeMint2Ix = CallSolanaHelperLib.prepareSolanaInstruction(
+            TOKEN_PROGRAM_ID,
+            accounts,
+            isSigner,
+            isWritable,
+            data
+        );
+
+        // Execute initializeMint2 instruction
+        CALL_SOLANA.execute(0, initializeMint2Ix);
+    }
+
     function testIterativeComposability(
         uint8 swapsCount,
         address router,
@@ -32,7 +75,7 @@ contract IterativeComposability {
         bytes memory seed,
         uint8 decimals
     ) external payable {
-
+        /*
         // EVM logic to trigger iterative execution
         for(uint8 i = 0; i < swapsCount; i++) {
             IPancakeRouter01(router).swapExactETHForTokens
@@ -44,7 +87,7 @@ contract IterativeComposability {
                 block.timestamp
             );
         }
-
+        */
         // Composability requests
 
         // Format createAccountWithSeed instruction
@@ -64,12 +107,13 @@ contract IterativeComposability {
         // Execute createAccountWithSeed instruction, sending 1461600 lamports
         CALL_SOLANA.execute(1461600, createAccountWithSeedIx);
 
+        // bytes32 authority = keccak256('SPL Token mint/freeze authority');
         // Format initializeMint2 instruction
         (   accounts,
             isSigner,
             isWritable,
             data
-        ) = formatInitializeMint2Instruction(decimals, accounts[1], accounts[1]);
+        ) = formatInitializeMint2Instruction(decimals, accounts[1], accounts[2], accounts[2]);
         // Prepare initializeMint2 instruction
         bytes memory initializeMint2Ix = CallSolanaHelperLib.prepareSolanaInstruction(
             TOKEN_PROGRAM_ID,
@@ -109,7 +153,7 @@ contract IterativeComposability {
 
         data = abi.encodePacked(
             bytes4(0x03000000), // Instruction variant
-            basePubKey, // Base public key used for accout  creation
+            basePubKey, // Base public key used for account  creation
             bytes8(0x1100000000000000), // Temporary: figure out how to get seed's bytes length in little-endian format
             seed,
             bytes8(0x604d160000000000), // Rent exemption balance for created account (1461600 lamports, right-padded little endian)
@@ -120,6 +164,7 @@ contract IterativeComposability {
 
     function formatInitializeMint2Instruction(
         uint8 decimals,
+        bytes32 tokenMint,
         bytes32 mintAuthority,
         bytes32 freezeAuthority
     ) public view returns (
@@ -129,7 +174,7 @@ contract IterativeComposability {
         bytes memory data
     ) {
         accounts = new bytes32[](1);
-        accounts[0] = mintAuthority;
+        accounts[0] = tokenMint;
 
         isSigner = new bool[](1);
         isSigner[0] = false;
@@ -138,10 +183,10 @@ contract IterativeComposability {
         isWritable[0] = true;
 
         data = abi.encodePacked(
-            bytes1(0x14), // Instruction variant
+            bytes1(0x14), // Instruction variant (see: https://github.com/solana-program/token/blob/08aa3ccecb30692bca18d6f927804337de82d5ff/program/src/instruction.rs#L558)
             bytes1(decimals), // Token's decimals value
             mintAuthority, // Token's mint authority account
-            bytes1(0x01), // Not sure what this byte is for
+            bytes1(0x01), // Flag set to 1, indicating that freezeAuthority account is provided next and should be unpacked (see: https://github.com/solana-program/token/blob/08aa3ccecb30692bca18d6f927804337de82d5ff/program/src/instruction.rs#L561)
             freezeAuthority // Token's freeze authority account
         );
     }
