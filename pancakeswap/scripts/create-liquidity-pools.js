@@ -72,17 +72,18 @@ async function createPairAndAddLiquidity(
   tokenAAddress,
   tokenBAddress,
   amountA,
-  amountB
+  amountB,
+  contract = `ERC20ForSplMintable`
 ) {
   const pancakeRouterContractFactory = await ethers.getContractFactory('PancakeRouter');
   const pancakeRouter = pancakeRouterContractFactory.attach(pancakeRouterAddress);
   const WNEONAddress = await pancakeRouter.WETH();
   const TokenAContractFactory = tokenAAddress === WNEONAddress
     ? await ethers.getContractFactory('WNEON')
-    : await ethers.getContractFactory('ERC20ForSplMintable');
+    : await ethers.getContractFactory(contract);
   const TokenBContractFactory = tokenBAddress === WNEONAddress
     ? await ethers.getContractFactory('WNEON')
-    : await ethers.getContractFactory('ERC20ForSplMintable');
+    : await ethers.getContractFactory(contract);
 
   const tokenA = TokenAContractFactory.attach(tokenAAddress);
   const tokenB = TokenBContractFactory.attach(tokenBAddress);
@@ -92,7 +93,6 @@ async function createPairAndAddLiquidity(
   const tokenBDecimals = await tokenB.decimals();
   const tokenAAmount = ethers.parseUnits(amountA.toString(), tokenADecimals);
   const tokenBAmount = ethers.parseUnits(amountB.toString(), tokenBDecimals);
-
 
   const pairAddress = await createPair(
     pancakeFactoryAddress,
@@ -243,5 +243,7 @@ main()
 */
 
 module.exports = {
-  createPairAndAddLiquidity
+  createPairAndAddLiquidity,
+  createPair,
+  addLiquidity
 };

@@ -1,6 +1,8 @@
 const { ethers, network } = require('hardhat');
 const {
-  getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction
+  getAssociatedTokenAddressSync,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction
 } = require('@solana/spl-token');
 const {
   erc20ForSPLContract,
@@ -47,16 +49,15 @@ async function main() {
 
   const deployer = (await ethers.getSigners())[0];
   console.log(`Deployer address: ${deployer.address}`);
-
-  for (const token of addresses.tokens) {
-    if (token.symbol === 'wNEON') {
-      await transferNeonTokenToBankAccount(connection, solanaWallet, deployer, token, 10000, addresses.transfer.neonTokenTransfer);
-    } else {
-      await transferERC20TokenToBankAccount(connection, solanaWallet, deployer, token, 10000);
-    }
-    for (const wallet of memberWallets) {
-      const memberWallet = new PublicKey(wallet);
-      await transferSolToMemberWallet(connection, memberWallet, 10);
+  for (const wallet of memberWallets) {
+    const memberWallet = new PublicKey(wallet);
+    await transferSolToMemberWallet(connection, memberWallet, 10);
+    for (const token of addresses.tokens) {
+      if (token.symbol === 'wNEON') {
+        await transferNeonTokenToBankAccount(connection, solanaWallet, deployer, token, 10000, addresses.transfer.neonTokenTransfer);
+      } else {
+        await transferERC20TokenToBankAccount(connection, solanaWallet, deployer, token, 10000);
+      }
       await transferTokenToMemberWallet(connection, solanaWallet, memberWallet, token, 100);
       await asyncTimeout(2e3);
     }
@@ -87,7 +88,6 @@ async function transferTokenToMemberWallet(connection, solanaWallet, memberWalle
   }
 }
 
-// todo refactoring wneon airdrop
 async function transferNeonTokenToBankAccount(connection, solanaWallet, deployer, token, amount, neonTransferAddress) {
   const wNeonFactory = await ethers.getContractFactory('WNEON');
   const fullAmount = ethers.parseUnits(amount.toString(), token.decimals);
@@ -149,8 +149,8 @@ async function transferNeonTokenToBankAccount(connection, solanaWallet, deployer
   }
 }
 
-async function transferERC20TokenToBankAccount(connection, solanaWallet, deployer, token, amount) {
-  const erc20Factory = await ethers.getContractFactory('ERC20ForSplMintable');
+async function transferERC20TokenToBankAccount(connection, solanaWallet, deployer, token, amount, contract = 'ERC20ForSplMintable') {
+  const erc20Factory = await ethers.getContractFactory(contract);
   const fullAmount = ethers.parseUnits(amount.toString(), token.decimals);
   const tokenContract = erc20Factory.attach(token.address);
   const tokenMint = new PublicKey(token.address_spl);
