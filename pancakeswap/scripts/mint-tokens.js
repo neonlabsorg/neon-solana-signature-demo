@@ -12,19 +12,7 @@ const {
 const { addresses } = require('../artifacts/addresses');
 require('dotenv').config();
 
-const memberWallets = [
-  /********************QA*********************/
-  `74ScNgGymddiT8Pq7cSSvozbLxdWoQVKmaN2Rzor9P5a`,
-  `Cvy4tJfTJWqEN7QkXaKKmB8sZ2eU7FnWwTVbzWQLLtz4`,
-  /*******************DEV*********************/
-  `597t2sa4xA5nmpksr4By176PDeCgwjiTfsFCymxq1pyY`,
-  `25ZACo5FyJXgs6u2rHi6E2jimbMdvwEy2gvvBVuG7J5x`,
-  `2uiFt7tpJFkK8PUTmZt4waWouhTd2hPeiLJpJuv4qt9N`,
-  /*****************PRODUCT******************/
-  `9MixdkmJUX6tDqPi51u4UuK1QgYVSXZZXnfdv6KhWQDL`,
-  `BeLYBoBfsiRfcDu8aRTcrscR4r8byXFjY4keKjp2JDUW`,
-  `ES5k14ELsh6wPrFGJ1c3GYBC8WS9vQkfHbvaCN5AM4nS`
-];
+const memberWallets = JSON.parse(process.env.TEST_SOLANA_WALLETS);
 
 async function main() {
   console.log(`Network name: ${network.name}`);

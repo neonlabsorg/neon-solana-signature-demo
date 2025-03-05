@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "deploy:v2": "npx hardhat run ./scripts/deploy-tokens-v2.js --network curvestand",
     "deploy": "npx hardhat run ./scripts/pancakeswap-demo-setup.js --network curvestand",
     "airdrop": "npx hardhat run ./scripts/mint-tokens.js --network curvestand",
     "test": "npx hardhat run scripts/transfer-tests.js --network curvestand"

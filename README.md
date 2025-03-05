@@ -31,8 +31,6 @@ The process flow involves:
 ### Repository Structure
 
 ```
-├── backend
-│   └── proxy              # Backend proxy server for handling CORS and API requests
 ├── frontend
 │   └── swap-ui            # React-based UI for performing token swaps
 ├── pancakeswap            # Scripts and configuration for PancakeSwap deployment
@@ -61,13 +59,6 @@ cd neon-solana-signature-demo
 ```
 
 2. Configure environment variables:
-
-For the backend proxy: (??? This is empty currently)
-```bash
-cd backend/proxy
-cp .env.example .env
-# Edit .env with your configuration
-```
 
 For the frontend:
 ```bash
@@ -116,6 +107,7 @@ npm install
 2. Run the PancakeSwap setup script for deploying all contracts:
 ```bash
 npm run deploy
+npm run airdrop
 ```
 
 This script will:
@@ -142,10 +134,8 @@ yarn dev
 
 ### Running the Demo
 
-1. Open the frontend application in your browser (typically at http://localhost:3000)
-
+1. Open the frontend application in your browser (typically at http://localhost:5173)
 2. Connect your Solana wallet (Phantom or another compatible wallet)
-
 3. Request tokens for testing:
 ```bash
 cd pancakeswap
