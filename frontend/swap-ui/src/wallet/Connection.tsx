@@ -14,6 +14,7 @@ import { JsonRpcProvider } from 'ethers';
 import { NEON_CORE_API_RPC_URL, PROXY_ENV, SOLANA_URL } from '../environments';
 import { simulateTransaction } from '../utils/solana.ts';
 import { Props } from '../models';
+import { Big } from 'big.js';
 
 export interface ProxyConnectionContextData {
   chainId: number;
@@ -39,22 +40,6 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
   const [chainId, setChainId] = useState<number>();
   const [walletBalance, setWalletBalance] = useState(0);
   let watchAccountId: number;
-
-  const getWalletBalance = async () => {
-    try {
-      if (publicKey && connection) {
-        const b = await connection.getBalance(publicKey);
-        if (b) {
-          setWalletBalance(b);
-        }
-      } else {
-        setWalletBalance(0);
-      }
-    } catch (e) {
-      console.log(e);
-      setWalletBalance(0);
-    }
-  };
 
   const sendTransaction = async (transaction: Transaction, commitment: Commitment = 'confirmed', options?: SendOptions): Promise<string | undefined> => {
     if (signTransaction) {
@@ -91,6 +76,26 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
   const provider = useMemo<JsonRpcProvider>(() => {
     return new JsonRpcProvider(`${NEON_CORE_API_RPC_URL}/sol`);
   }, []);
+
+  const getWalletBalance = async () => {
+    try {
+      if (publicKey && connection) {
+        const b = await connection.getBalance(publicKey);
+        if (b) {
+          setWalletBalance(b);
+        }
+        if (provider && solanaUser) {
+          const b = await provider.getBalance(solanaUser.neonWallet);
+          console.log(`${solanaUser.neonWallet}: ${new Big(b.toString()).div(1e18).toString()} SOL`);
+        }
+      } else {
+        setWalletBalance(0);
+      }
+    } catch (e) {
+      console.log(e);
+      setWalletBalance(0);
+    }
+  };
 
   useEffect(() => {
     (async () => {
