@@ -1,7 +1,7 @@
 {
   "name": "swap-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,9 +11,10 @@
     "test": "jest",
     "test:watch": "jest --watch --detectOpenHandles"
   },
+  "license": "MIT",
   "dependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-    "@neonevm/solana-sign": "^0.1.8",
+    "@neonevm/solana-sign": "^0.1.9",
     "@neonevm/token-transfer-core": "^4.4.2",
     "@neonevm/token-transfer-ethers": "^4.4.2",
     "@pythnetwork/client": "^2.22.0",

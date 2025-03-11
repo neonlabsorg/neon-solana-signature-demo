@@ -81,7 +81,12 @@ function SwapState({ formState, loading, executeState, setLoading, transactionCa
   };
 
   const showLink = (trx: ScheduledTransactionStatus): boolean => {
-    return ['Success', 'Empty', 'Failed', 'Skipped'].includes(trx.status);
+    return ['devnet', 'mainnet'].includes(PROXY_ENV) && ['Success', 'Empty', 'Failed', 'Skipped'].includes(trx.status);
+  };
+
+  const txLink = (trx: ScheduledTransactionStatus): string => {
+    const neon = PROXY_ENV === 'mainnet' ? 'neon' : 'neon-devnet';
+    return `https://${neon}.blockscout.com/tx/${trx.transactionHash}`;
   };
 
   return (
@@ -108,7 +113,7 @@ function SwapState({ formState, loading, executeState, setLoading, transactionCa
             return <div className="form-state-transaction" key={key}>
               <div className="transaction-item">
                 {showLink(trx) ?
-                  <a href={`https://devnet.neonscan.org/tx/${trx.transactionHash}`}
+                  <a href={txLink(trx)}
                      target="_blank">{trx.transactionHash}</a>
                   : <span>{trx.transactionHash}</span>}
               </div>

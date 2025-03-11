@@ -1,3 +1,4 @@
+import { SPLToken } from '@neonevm/token-transfer-core';
 import React, { useMemo, useState } from 'react';
 import AmountInput from 'react-currency-input-field';
 import { Big } from 'big.js';
@@ -19,45 +20,42 @@ type Props = {
   disabled: boolean;
   loading: boolean;
   setTokenData(type: 'from' | 'to', data: { token: string; amount: string; }): void;
+  updateTokenBalance(token: SPLToken): Promise<void>;
 };
 
 export const TokenField: React.FC = (props: Props) => {
   const {
     data, tokensList, type,
-    label, setTokenData, excludedToken, disabled, loading, maxAmount
+    label, setTokenData, updateTokenBalance, excludedToken, disabled, loading, maxAmount
   } = props;
   const [openModal, setOpenModal] = useState(false);
-
-  const tokenIcon = useMemo(() => {
-    const symbol = data.token.toLowerCase();
-    const icon = tokenIcons.hasOwnProperty(symbol) ? tokenIcons[symbol] : 'token.png';
-    return `/tokens/${icon}`;
-  }, [data]);
-
-  const tokenBalance = useMemo(() => {
-    const symbol = data.token ? data.token : '';
-    const id = tokensList.findIndex(i => i.token.symbol === symbol);
-    if (id > -1) {
-      const token = tokensList[id];
-      const balance = token.balance?.uiAmount ?? '';
-      return balance ? balance : '0';
-    }
-    return `0`;
-  }, [data, tokensList]);
 
   const token = useMemo(() => {
     const symbol = data.token ? data.token : '';
     const id = tokensList.findIndex(i => i.token.symbol === symbol);
     if (id > -1) {
-      const token = tokensList[id];
-      return token.token;
+      return tokensList[id];
     }
     return null;
   }, [data, tokensList]);
 
-  const tokenName = useMemo(() => {
-    return token?.name;
+  const tokenIcon = useMemo(() => {
+    const symbol = token?.token.symbol.toLowerCase();
+    const icon = Object.prototype.hasOwnProperty.call(tokenIcons, symbol!) ? tokenIcons[symbol] : 'token.svg';
+    return `/tokens/${icon}`;
   }, [token]);
+
+  const tokenName = useMemo(() => {
+    return token?.token?.name;
+  }, [token]);
+
+  const tokenBalance = useMemo(() => {
+    if (token) {
+      const balance = token.balance?.uiAmount ?? '';
+      return balance ? balance : '0';
+    }
+    return `0`;
+  }, [data, token, loading]);
 
   const handleOpenModal = (): void => {
     setOpenModal(true);
@@ -112,7 +110,7 @@ export const TokenField: React.FC = (props: Props) => {
         </div>
       </div>
       <TokensModal excludedToken={excludedToken} tokensList={tokensList} openModal={openModal}
-                   closeModal={handleCloseModal} />
+                   closeModal={handleCloseModal} updateTokenBalance={updateTokenBalance} />
     </>
   );
 };

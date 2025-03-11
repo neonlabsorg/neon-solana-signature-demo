@@ -1,9 +1,16 @@
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import {
+  Connection,
+  PublicKey,
+  TokenAmount,
+  Transaction,
+  TransactionInstruction
+} from '@solana/web3.js';
 import {
   delay,
   EstimateScheduledTransaction,
+  log,
   logJson,
   NeonAddress,
   ScheduledTransactionStatus,
@@ -19,17 +26,15 @@ import {
   CSPLToken,
   CTokenBalance,
   FormState,
-  PancakePair, SwapTokenCommonData,
+  PancakePair,
+  SwapTokenCommonData,
   SwapTokenData,
   SwapTokensResponse,
   TransactionGas
 } from '../models';
 import { estimateSwapAmount } from '../api/swap';
-import { tokens } from '../data/tokens';
 import { PROXY_ENV } from '../environments';
 import './SwapForm.css';
-
-const { swap } = tokens(PROXY_ENV);
 
 interface FormData {
   from: { token: string, amount: string },
@@ -47,7 +52,7 @@ interface Props {
 
   approveMethod(connection: Connection, solanaUser: SolanaNeonAccount, neonEvmProgram: PublicKey, token: CSPLToken, amount: number): Promise<TransactionInstruction | null>;
 
-  swapMethod(params: SwapTokenData, transactionData: EstimateScheduledTransaction[], transactionGas: TransactionGas): Promise<SwapTokensResponse>;
+  swapMethod(params: SwapTokenData, transactionData: EstimateScheduledTransaction[], transactionGas: TransactionGas, instructions: TransactionInstruction[]): Promise<SwapTokensResponse>;
 
   swapMethodOld(params: SwapTokenCommonData): Promise<SwapTokensResponse>;
 }
@@ -63,18 +68,19 @@ export const SwapForm: React.FC = (props: Props) => {
     chainId,
     neonEvmProgram,
     sendTransaction,
-    provider
+    provider,
+    addresses
   } = useProxyConnection();
-  const [one, two] = tokensList;
-  const [formData, setFormData] = useState<FormData>({
-    from: { token: one.symbol!, amount: '' },
-    to: { token: two.symbol!, amount: '' }
-  });
   const [loading, setLoading] = useState<boolean>(false);
   const [transactionStates, setTransactionStates] = useState<FormState[]>([]);
   const transactionsRef = useRef<FormState[]>([]);
   const [error, setError] = useState<string>(``);
   const [fieldLoading, setFieldLoading] = useState<boolean>(false);
+  const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
+  const [formData, setFormData] = useState<FormData>({
+    from: { token: '', amount: '' },
+    to: { token: '', amount: '' }
+  });
 
   const formValidation = useMemo((): boolean => {
     const { from, to } = formData;
@@ -82,20 +88,27 @@ export const SwapForm: React.FC = (props: Props) => {
     const a = Number(from.amount);
     const b = Number(to.amount);
     const c = [NaN, 0];
-    return !from.amount || !to.amount || c.includes(a) || c.includes(b) || !tokenFrom?.balance?.amount;
+    return !from.amount || !to.amount || c.includes(a) || c.includes(b) || !tokenFrom?.balance?.amount ||
+      Number(from.amount) > Number(tokenFrom?.balance?.uiAmount);
   }, [formData, tokenBalanceList]);
 
   const tokenFromTo = useMemo<[CSPLToken, CSPLToken]>(() => {
-    const tokenFrom = tokensList.find(t => t.symbol === formData.from.token)!;
-    const tokenTo = tokensList.find(t => t.symbol === formData.to.token)!;
-    return [tokenFrom, tokenTo];
+    if (tokensList.length > 0) {
+      const tokenFrom = tokensList.find(t => t.symbol === formData.from.token)!;
+      const tokenTo = tokensList.find(t => t.symbol === formData.to.token)!;
+      return [tokenFrom, tokenTo];
+    }
+    return [];
   }, [formData.from.token, formData.to.token, tokensList]);
 
   const pancakePair = useMemo<PancakePair>(() => {
-    const [tokenFrom, tokenTo] = tokenFromTo;
-    const pair = `${tokenFrom.symbol}/${tokenTo.symbol}`.toLowerCase();
-    return swap.pairs[pair];
-  }, [tokenFromTo]);
+    if (tokenFromTo.length > 0) {
+      const [tokenFrom, tokenTo] = tokenFromTo;
+      const pair = `${tokenFrom?.symbol}/${tokenTo?.symbol}`.toLowerCase();
+      return addresses.swap.pairs[pair];
+    }
+    return {} as PancakePair;
+  }, [addresses.swap.pairs, tokenFromTo]);
 
   const buttonText = useMemo((): string => {
     const { from, to } = formData;
@@ -153,7 +166,7 @@ export const SwapForm: React.FC = (props: Props) => {
     const [tokenFrom, tokenTo] = tokenFromTo;
     const amountFrom = Number(formData.from.amount);
     const amountTo = Number(formData.to.amount);
-    const pancakeRouter: NeonAddress = swap.router;
+    const pancakeRouter: NeonAddress = addresses.swap.router;
     const params: SwapTokenData = {
       nonce,
       proxyApi,
@@ -171,23 +184,34 @@ export const SwapForm: React.FC = (props: Props) => {
     };
 
     const transactions = await dataMethod(params);
+    // remove after devnet/mainnet proxy releases
     const { maxPriorityFeePerGas, maxFeePerGas } = await proxyApi.getMaxFeePerGas();
     const gasLimit = transactions.map(_ => 1e7);
     const transactionGas: TransactionGas = { maxPriorityFeePerGas, maxFeePerGas, gasLimit };
-    // const transactionGas = await estimateScheduledGas(proxyApi, {
-    //   scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
-    //   transactions
-    // });
-
-    // const method = (params: SwapTokenCommonData) => swapMethod(params, transactions, transactionGas);
-    // return method({ ...params, transactionGas });
-
     return swapMethodOld({ ...params, transactionGas });
+    // Uncomment after devnet/mainnet proxy release
+/*    const approveInstruction = await approveMethod(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
+    const preparatorySolanaTransactions: PreparatorySolanaTransaction[] = [];
+    const instructions: TransactionInstruction[] = [];
+    if (approveInstruction) {
+      preparatorySolanaTransactions.push({
+        instructions: [prepareSolanaInstruction(approveInstruction!)]
+      });
+      instructions.push(approveInstruction);
+    }
+    const transactionGas = await estimateScheduledGas(proxyApi, {
+      scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
+      transactions,
+      preparatorySolanaTransactions
+    });
+    const method = (params: SwapTokenCommonData) => swapMethod(params, transactions, transactionGas, instructions);
+    return method({ ...params, transactionGas });*/
+    // ------
   };
 
   const cancelTransaction = async (_: ScheduledTransactionStatus) => {
     const { result } = await proxyApi.getPendingTransactions(solanaUser.publicKey);
-    console.log(result);
+    log(result);
   };
 
   const executeTransactionState = async (state: FormState): Promise<void> => {
@@ -235,7 +259,7 @@ export const SwapForm: React.FC = (props: Props) => {
       }
     } catch (e) {
       state.status = 'Failed';
-      console.log(e.message);
+      log(e.message);
       setError(e.message);
       setLoading(false);
     }
@@ -247,7 +271,7 @@ export const SwapForm: React.FC = (props: Props) => {
       if (i > 0 && ['Failed', 'Skipped', 'NoStarted'].includes(transactionStates[i - 1].status)) {
         break;
       } else {
-        console.log(`Run transaction ${state.title}`);
+        log(`Run transaction ${state.title}`);
         await executeTransactionState(state);
         await delay(1e3);
       }
@@ -281,7 +305,7 @@ export const SwapForm: React.FC = (props: Props) => {
       await executeTransactionsStates(transactionsRef.current);
       setLoading(false);
     } catch (e: unknown) {
-      console.log(e.message);
+      log(e.message);
       if (transactionsRef.current.some(i => !i.data)) {
         transactionsRef.current = [];
         addTransactionStates(transactionsRef.current);
@@ -314,27 +338,54 @@ export const SwapForm: React.FC = (props: Props) => {
     });
   };
 
-  useEffect(() => {
-    const getBalance = async (): Promise<void> => {
-      const tokens: CTokenBalance[] = [];
-      for (const token of tokensList) {
-        const cTokenBalance: CTokenBalance = { token, balance: undefined };
-        if (publicKey) {
-          try {
-            const tokenMint = new PublicKey(token.address_spl);
-            const tokenAddress = getAssociatedTokenAddressSync(tokenMint, publicKey);
-            const { value: balance } = await connection.getTokenAccountBalance(tokenAddress);
-            cTokenBalance['balance'] = balance;
-          } catch (e) {
-            console.log(e?.message);
-          }
-        }
-        tokens.push(cTokenBalance);
+  const getTokenBalance = async (token: SPLToken): Promise<TokenAmount | undefined> => {
+    if (publicKey) {
+      try {
+        const tokenMint = new PublicKey(token.address_spl);
+        const tokenAddress = getAssociatedTokenAddressSync(tokenMint, publicKey);
+        const { value: balance } = await connection.getTokenAccountBalance(tokenAddress);
+        return balance;
+      } catch (e) {
+        log(e?.message);
       }
-      setTokenBalanceList(() => tokens);
-    };
+    }
+    return undefined;
+  };
 
-    getBalance().catch(console.log);
+  const getBalance = async (): Promise<void> => {
+    const tokens: CTokenBalance[] = [];
+    for (const token of tokensList) {
+      const cTokenBalance: CTokenBalance = { token, balance: undefined };
+      cTokenBalance.balance = await getTokenBalance(token);
+      tokens.push(cTokenBalance);
+    }
+    setTokenBalanceList(() => tokens);
+  };
+
+  const updateTokenBalance = async (token: SPLToken): Promise<void> => {
+    const id = tokenBalanceList.findIndex(i => i.token.address === token.address);
+    setBalanceLoading(true);
+    if (id > -1) {
+      const cTokenBalance = tokenBalanceList[id];
+      cTokenBalance.balance = await getTokenBalance(token);
+    }
+    setTokenBalanceList(() => tokenBalanceList);
+    setBalanceLoading(false);
+  };
+
+  useEffect(() => {
+    if (tokensList.length > 0) {
+      setFormData(prevState => {
+        const [one, two] = tokensList;
+        prevState.from.token = one.symbol;
+        prevState.to.token = two.symbol;
+        return prevState;
+      });
+    }
+  }, [addresses, tokensList]);
+
+  useEffect(() => {
+    getBalance().catch(log);
   }, [publicKey, loading]);
 
   useEffect(() => {
@@ -352,7 +403,7 @@ export const SwapForm: React.FC = (props: Props) => {
     const amountFrom = formData.from.amount;
     if (pancakePair && amountFrom && Number(amountFrom) > 0) {
       setFieldLoading(true);
-      estimateSwapAmount(provider, tokenFromTo, amountFrom, swap.router, pancakePair).then(balance => {
+      estimateSwapAmount(provider, tokenFromTo, amountFrom, addresses.swap.router, pancakePair).then(balance => {
         const [, tokenTo] = tokenFromTo;
         const amount = new Big(balance.toString()).div(new Big(10).pow(tokenTo.decimals)).toString();
         handleTokenData('to', { token: formData.to.token, amount });
@@ -371,7 +422,9 @@ export const SwapForm: React.FC = (props: Props) => {
           <TokenField data={formData.from} tokensList={tokenBalanceList}
                       excludedToken={formData.to.token}
                       setTokenData={handleTokenData}
+                      updateTokenBalance={updateTokenBalance}
                       maxAmount={MAX_AMOUNT}
+                      loading={balanceLoading}
                       label="From" type="from"></TokenField>
         </div>
         <div className="form-divider">
@@ -384,8 +437,9 @@ export const SwapForm: React.FC = (props: Props) => {
           <TokenField data={formData.to} tokensList={tokenBalanceList}
                       excludedToken={formData.from.token}
                       setTokenData={handleTokenData}
+                      updateTokenBalance={updateTokenBalance}
                       maxAmount={MAX_AMOUNT}
-                      loading={fieldLoading}
+                      loading={fieldLoading || balanceLoading}
                       disabled={true}
                       label="To" type="to"></TokenField>
         </div>

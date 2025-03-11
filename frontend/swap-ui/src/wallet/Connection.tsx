@@ -6,15 +6,18 @@ import {
   delay,
   getGasToken,
   getProxyState,
+  log,
   logJson,
   NeonProxyRpcApi,
   SolanaNeonAccount
 } from '@neonevm/solana-sign';
 import { JsonRpcProvider } from 'ethers';
-import { NEON_CORE_API_RPC_URL, PROXY_ENV, SOLANA_URL } from '../environments';
-import { simulateTransaction } from '../utils/solana.ts';
-import { Props } from '../models';
 import { Big } from 'big.js';
+import { NEON_CORE_API_RPC_URL, PROXY_ENV, SOLANA_URL } from '../environments';
+import { simulateTransaction } from '../utils/solana';
+import { Props, TokensListResponse } from '../models';
+import { getTokensList } from '../api/tokens';
+import { tokens } from '../data/tokens';
 
 export interface ProxyConnectionContextData {
   chainId: number;
@@ -24,6 +27,7 @@ export interface ProxyConnectionContextData {
   proxyApi: NeonProxyRpcApi;
   provider: JsonRpcProvider;
   walletBalance: number;
+  addresses: TokensListResponse;
 
   sendTransaction(transaction: Transaction, commitment?: Commitment, options?: SendOptions): Promise<string | undefined>;
 
@@ -39,13 +43,15 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
   const [tokenMint, setTokenMint] = useState<PublicKey>();
   const [chainId, setChainId] = useState<number>();
   const [walletBalance, setWalletBalance] = useState(0);
+  const data = tokens(PROXY_ENV);
+  const [addresses, setAddresses] = useState<TokensListResponse>(data);
   let watchAccountId: number;
 
   const sendTransaction = async (transaction: Transaction, commitment: Commitment = 'confirmed', options?: SendOptions): Promise<string | undefined> => {
     if (signTransaction) {
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(commitment);
-      transaction.recentBlockhash = blockhash;
-      transaction.lastValidBlockHeight = lastValidBlockHeight;
+      transaction.recentBlockhash = transaction.recentBlockhash ? transaction.recentBlockhash : blockhash;
+      transaction.lastValidBlockHeight = transaction.lastValidBlockHeight ? transaction.lastValidBlockHeight : lastValidBlockHeight;
       transaction.feePayer = solanaUser.publicKey;
       const { value } = await simulateTransaction(connection, transaction, commitment);
       logJson(value.err);
@@ -62,7 +68,7 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
       } else {
         await delay(5e3);
       }
-      console.log(`https://explorer.solana.com/tx/${signature}?cluster=custom&customUrl=${SOLANA_URL}`);
+      log(`https://explorer.solana.com/tx/${signature}?cluster=custom&customUrl=${SOLANA_URL}`);
       return signature;
     }
   };
@@ -99,12 +105,11 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
 
   useEffect(() => {
     (async () => {
-      const { chainId: chainIdB } = await provider.getNetwork();
       const result = await getProxyState(`${NEON_CORE_API_RPC_URL}/sol`);
       setEvmProgramAddress(result.evmProgramAddress);
       setProxyApi(result.proxyApi);
-      setChainId(Number(chainIdB));
-      const token = getGasToken(result.tokensList, Number(chainIdB));
+      setChainId(result.chainId);
+      const token = getGasToken(result.tokensList, result.chainId);
       setTokenMint(token.tokenMintAddress);
     })();
   }, [provider]);
@@ -120,6 +125,19 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
     }
   }, [publicKey, connection, getWalletBalance]);
 
+  useEffect(() => {
+    const getAddresses = async () => {
+      try {
+        const addresses = await getTokensList(PROXY_ENV);
+        setAddresses(addresses);
+      } catch (_) {
+        const addresses = tokens(PROXY_ENV);
+        setAddresses(addresses);
+      }
+    };
+    getAddresses().then();
+  }, []);
+
   return (
     <ProxyConnectionContext.Provider value={{
       chainId: chainId!,
@@ -129,6 +147,7 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
       proxyApi: proxyApi!,
       provider: provider!,
       walletBalance,
+      addresses,
       sendTransaction,
       getWalletBalance
     }}>

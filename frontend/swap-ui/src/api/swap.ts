@@ -408,7 +408,7 @@ export async function swapTokensMultipleV2(params: SwapTokenCommonData): Promise
   };
 }
 
-export async function swapTokensMultipleWithGasFee(params: SwapTokenData, transactionData: EstimateScheduledTransaction[], transactionGas: TransactionGas): Promise<SwapTokensResponse> {
+export async function swapTokensMultipleWithGasFee(params: SwapTokenData, transactionData: EstimateScheduledTransaction[], transactionGas: TransactionGas, instructions: TransactionInstruction[] = []): Promise<SwapTokensResponse> {
   const {
     neonEvmProgram,
     solanaUser,
@@ -450,6 +450,12 @@ export async function swapTokensMultipleWithGasFee(params: SwapTokenData, transa
     neonWallet: solanaUser.neonWallet,
     neonWalletNonce: nonce
   });
+
+  if (instructions.length > 0) {
+    for (const instruction of instructions) {
+      scheduledTransaction.instructions.unshift(instruction);
+    }
+  }
 
   // [0?] create ata
   const instruction = await createATAInstruction(connection, solanaUser, tokenTo);

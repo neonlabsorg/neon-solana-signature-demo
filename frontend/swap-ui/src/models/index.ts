@@ -6,6 +6,7 @@ import {
   NeonProxyRpcApi,
   ScheduledTransaction,
   ScheduledTreeAccount,
+  SolanaAddress,
   SolanaNeonAccount
 } from '@neonevm/solana-sign';
 import { JsonRpcProvider } from 'ethers';
@@ -77,4 +78,30 @@ export interface UITab {
   id: number;
   title: string;
   disabled: boolean;
+}
+
+export interface TokensListResponse {
+  swap: any;
+  tokensV1: CSPLToken[];
+  tokensV2: CSPLToken[];
+  airdrop?: string[];
+}
+
+export interface TransactionResponse {
+  transaction: string;
+  message?: string;
+  payload?: any;
+}
+
+export interface TransactionStateResponse {
+  lastTrx: number;
+  network: SolanaEnvironment;
+  token: SolanaAddress;
+  wallet: SolanaAddress;
+}
+
+export const enum SolanaEnvironment {
+  localnet = 'localnet',
+  devnet = 'devnet',
+  mainnet = 'mainnet'
 }

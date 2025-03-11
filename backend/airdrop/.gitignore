@@ -1,0 +1,10 @@
+/node_modules
+/dist
+/build
+.idea
+.DS_Store
+tmp.json
+*.tmp
+imp
+.nx/cache
+.env
