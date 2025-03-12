@@ -4,6 +4,18 @@
     @apply bg-[#161B26];
   }
 }
+.button-airdrop {
+  @apply inline-flex flex-row justify-center items-center cursor-pointer p-[6px] rounded-[6px] transition-all min-w-[36px] h-[36px];
+  &:hover {
+    @apply bg-[#161B26];
+  }
+  &[disabled] {
+    @apply cursor-default;
+    &:hover {
+      @apply bg-transparent;
+    }
+  }
+}
 
 .token-content {
   @apply flex flex-row gap-[8px] items-center;

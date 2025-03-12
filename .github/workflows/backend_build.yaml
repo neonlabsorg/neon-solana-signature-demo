@@ -1,0 +1,39 @@
+name: neon-solana-signature-demo-backend-image-build-push
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-neon-solana-signature-demo-docker-image:
+    runs-on: ["self-hosted", "k8s-prod"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3.1.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set short SHA
+        run: |
+          branch=${{ github.ref_name }}
+          sha=${GITHUB_SHA::8}
+          run_number=${GITHUB_RUN_NUMBER}
+          echo "BUILD_ID=${branch}-${sha}-${run_number}" >> $GITHUB_ENV
+
+      - name: Build and push neon-solana-signature-demo image
+        uses: docker/build-push-action@v5.3.0
+        with:
+          context: backend/airdrop
+          push: true
+          file: backend/airdrop/Dockerfile
+          tags: neonlabsorg/neon-solana-signature-demo-backend:${{ env.BUILD_ID }}
+          labels: neonlabsorg/neon-solana-signature-demo-backend:${{ env.BUILD_ID }}

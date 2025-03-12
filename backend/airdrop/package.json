@@ -1,0 +1,54 @@
+{
+  "name": "neon-solana-airdrop",
+  "version": "1.0.0",
+  "description": "Service for sharing test tokens",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
+    "dev": "nodemon -r tsconfig-paths/register src/index.ts",
+    "exec": "concurrently \"npx tsc --watch\" \"ts-node -r tsconfig-paths/register src/index.ts\"",
+    "test": "jest"
+  },
+  "keywords": [
+    "Neon EVM",
+    "Solana",
+    "Faucet",
+    "Solana airdrop",
+    "Solana signer demo"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@solana/spl-token": "0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "big.js": "^6.2.2",
+    "bs58": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "express": "^4.21.2",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "mime-types": "^2.1.35",
+    "tsconfig-paths": "^4.2.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/big.js": "^6.2.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^22.10.7",
+    "concurrently": "^9.1.2",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.10",
+    "typescript": "^5.7.3"
+  }
+}

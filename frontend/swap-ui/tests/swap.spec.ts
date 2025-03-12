@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, it } from '@jest/globals';
-import { Connection, Keypair, PublicKey, Signer, Transaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, Signer, TransactionInstruction } from '@solana/web3.js';
 import {
   delay,
   EstimateScheduledTransaction,
@@ -9,6 +9,8 @@ import {
   logJson,
   NeonAddress,
   NeonProxyRpcApi,
+  PreparatorySolanaTransaction,
+  prepareSolanaInstruction,
   ScheduledTreeAccount,
   solanaAirdrop,
   SolanaNeonAccount
@@ -114,10 +116,14 @@ describe('Check Swap with Solana singer', () => {
     const transferSolanaTransaction = await transferTokenToSolanaTransactionData(params);
 
     const approveInstruction = await approveTokenV1Instruction(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
+
+    const preparatorySolanaTransactions: PreparatorySolanaTransaction[] = [];
+    const instructions: TransactionInstruction[] = [];
     if (approveInstruction) {
-      const trx = new Transaction();
-      trx.add(approveInstruction);
-      await sendSolanaTransaction(connection, trx, [solanaUser.signer!]);
+      preparatorySolanaTransactions.push({
+        instructions: [prepareSolanaInstruction(approveInstruction!)]
+      });
+      instructions.push(approveInstruction);
     }
 
     const transactionData: EstimateScheduledTransaction[] = [
@@ -129,10 +135,11 @@ describe('Check Swap with Solana singer', () => {
 
     const transactionGas = await estimateScheduledGas(proxyApi, {
       scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
-      transactions: transactionData
+      transactions: transactionData,
+      preparatorySolanaTransactions
     });
 
-    const method = (params: SwapTokenCommonData) => swapTokensMultipleWithGasFee(params, transactionData, transactionGas);
+    const method = (params: SwapTokenCommonData) => swapTokensMultipleWithGasFee(params, transactionData, transactionGas, instructions);
 
     const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest({
       ...params,
@@ -166,10 +173,13 @@ describe('Check Swap with Solana singer', () => {
     };
 
     const approveInstruction = await approveTokenV2Instruction(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
+    const preparatorySolanaTransactions: PreparatorySolanaTransaction[] = [];
+    const instructions: TransactionInstruction[] = [];
     if (approveInstruction) {
-      const trx = new Transaction();
-      trx.add(approveInstruction);
-      await sendSolanaTransaction(connection, trx, [solanaUser.signer!]);
+      preparatorySolanaTransactions.push({
+        instructions: [prepareSolanaInstruction(approveInstruction!)]
+      });
+      instructions.push(approveInstruction);
     }
 
     const approveSwapTransaction = approveTokensForSwapTransactionData(params);
@@ -182,10 +192,11 @@ describe('Check Swap with Solana singer', () => {
 
     const transactionGas = await estimateScheduledGas(proxyApi, {
       scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
-      transactions: transactionData
+      transactions: transactionData,
+      preparatorySolanaTransactions
     });
 
-    const method = (params: SwapTokenCommonData) => swapTokensMultipleWithGasFee(params, transactionData, transactionGas);
+    const method = (params: SwapTokenCommonData) => swapTokensMultipleWithGasFee(params, transactionData, transactionGas, instructions);
     const swapParams: SwapTokenCommonData = { ...params, transactionGas };
     const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest(swapParams, method);
 
