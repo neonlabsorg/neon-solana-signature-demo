@@ -39,7 +39,7 @@ function TokenItem({ token, tokenSelect, tokenAirdrop }: {
   }, [tokenSymbol]);
 
   const showAirdrop = useMemo(() => {
-    return !!addresses.airdrop?.includes(token.token.address_spl);
+    return !!solanaUser && !!addresses.airdrop?.includes(token.token.address_spl);
   }, [addresses.airdrop, token.token.address_spl]);
 
   const delayTransaction = async (timestamp: number): Promise<void> => {

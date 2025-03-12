@@ -23,3 +23,11 @@ For run tests should add `/tests/.env` (see `/tests/.env.example`)
 ```shell
 yarn test
 ```
+
+
+### Run with Docker Compose
+For start web server add `.env` (see `.env.example`).
+
+```shell
+docker-compose up --build -d
+```

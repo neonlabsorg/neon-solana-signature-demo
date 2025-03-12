@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 .tokens-modal {
-  @apply flex flex-col bg-[#0C111D] rounded-lg w-[480px];
+  @apply flex flex-col bg-[#0C111D] rounded-lg w-[540px];
 }
 
 .tokens-header {
