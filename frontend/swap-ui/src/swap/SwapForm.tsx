@@ -164,14 +164,13 @@ export const SwapForm: React.FC = (props: Props) => {
       pancakeRouter,
       chainId
     };
-    const transactions = await dataMethod(params);
     // remove after devnet/mainnet proxy releases
-    const { maxPriorityFeePerGas, maxFeePerGas } = await proxyApi.getMaxFeePerGas();
-    const gasLimit = transactions.map(_ => 1e7);
-    const transactionGas: TransactionGas = { maxPriorityFeePerGas, maxFeePerGas, gasLimit };
+    const gasLimit = [200000, 200000, 200000, 200000];
+    const transactionGas: TransactionGas = { maxPriorityFeePerGas: 0x9502f900, maxFeePerGas: 0xee6b2800, gasLimit };
     return swapMethodOld({ ...params, transactionGas });
     // uncomment after devnet/mainnet proxy release
-/*    const approveInstruction = await approveMethod(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
+/*  const transactions = await dataMethod(params);
+    const approveInstruction = await approveMethod(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
     const preparatorySolanaTransactions: PreparatorySolanaTransaction[] = [];
     const instructions: TransactionInstruction[] = [];
     if (approveInstruction) {
