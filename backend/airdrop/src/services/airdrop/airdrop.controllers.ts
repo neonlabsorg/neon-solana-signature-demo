@@ -1,13 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
 import { PublicKey } from '@solana/web3.js';
-import { transferTokens } from '@utils/tokens';
+import { AIRDROP_SOL_LIMIT, EXCLUDED_TOKENS, transferTokens } from '@utils/tokens';
 import { solanaBankWallet, solanaConnection } from '@utils/solana';
 import { AIRDROP_LIMIT, TRANSACTION_INTERVAL } from '@environment';
 import { ResponseError } from '@utils/error';
 import { log } from '@utils/log';
 
 const storage = new Map<string, number>();
-const tokens = [`So11111111111111111111111111111111111111112`];
 
 export async function airdropTransactionState(req: Request, res: Response): Promise<any> {
   const { wallet, token, network } = req.body;
@@ -29,10 +28,10 @@ export async function airdropTransaction(req: Request, res: Response, next: Next
         message: `Failed: trying to get a large amount`,
         payload: { limit: AIRDROP_LIMIT }
       });
-    } else if (tokens.includes(token) && Number(amount) > 0.1) {
+    } else if (EXCLUDED_TOKENS.includes(token) && Number(amount) > AIRDROP_SOL_LIMIT) {
       throw new ResponseError({
         message: `Failed: trying to get a large amount`,
-        payload: { limit: 0.1 }
+        payload: { limit: AIRDROP_SOL_LIMIT }
       });
     }
     if (storage.has(wallet)) {

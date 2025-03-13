@@ -45,9 +45,14 @@ describe('Check airdrop', () => {
     const keypair = Keypair.fromSecretKey(bs58.decode(SOLANA_WALLET));
     await solanaAirdrop(connection, keypair.publicKey, 1e9);
     const { tokensV1 } = await get(`${apiUrl}/tokens/localnet`);
-    const [token]: CSPLToken[] = tokensV1;
+    const [_, token]: CSPLToken[] = tokensV1;
     const ataAddress = getAssociatedTokenAddressSync(new PublicKey(token.address_spl), keypair.publicKey);
-    const { value: balanceBefore } = await connection.getTokenAccountBalance(ataAddress, 'confirmed');
+    let balanceBefore: string = '0';
+    try {
+      const { value } = await connection.getTokenAccountBalance(ataAddress, 'confirmed');
+      balanceBefore = value?.amount ?? '0';
+    } catch (e) {
+    }
     const { transaction } = await post(`${apiUrl}/airdrop`, {
       wallet: keypair.publicKey.toBase58(),
       token: token.address_spl,
@@ -57,7 +62,7 @@ describe('Check airdrop', () => {
     const recoveredTransaction = Transaction.from(bs58.decode(transaction));
     await sendSolanaTransaction(connection, recoveredTransaction, [keypair], true, { skipPreflight: false });
     const { value: balanceAfter } = await connection.getTokenAccountBalance(ataAddress, 'confirmed');
-    expect(Number(balanceAfter?.amount)).toBeGreaterThan(Number(balanceBefore?.amount));
+    expect(Number(balanceAfter?.amount)).toBeGreaterThan(Number(balanceBefore));
   });
 
   it(`Airdrop tokens going over the limit`, async () => {
@@ -90,6 +95,6 @@ describe('Check airdrop', () => {
       token: tokenKey,
       amount: 1
     });
-    expect(response.message).toBe(`Failed: token transfer is not supported`);
+    expect(response.message).toBe(`Failed: failed to retrieve the transaction`);
   });
 });

@@ -259,18 +259,7 @@ export const SwapForm: React.FC = (props: Props) => {
 
   const handleSubmit = async () => {
     try {
-      // todo return back after demo
-      // const approveState: FormState = {
-      //   id: 0,
-      //   title: `Approve Solana`,
-      //   status: `NotStarted`,
-      //   signature: ``,
-      //   isCompleted: false,
-      //   method: approveTokens,
-      //   data: undefined
-      // };
       const swapTokensState: FormState = {
-        // id: 1,
         id: 0,
         title: `Swap tokens`,
         status: `NotStarted`,
