@@ -14,7 +14,7 @@ export const addressesDevnet = {
       symbol: 'wSOL',
       decimals: 9
     },
-    {
+/*    {
       address: '0x7a8F86eB7f15111c6bD2BfC57c7616fC12D56284',
       address_spl: `5UMhuc2A58xPAPdtLGuYt7SyEQ1pRnyEGDf1fdzJGe4U`, // ???
       name: 'Token v1',
@@ -27,7 +27,7 @@ export const addressesDevnet = {
       name: 'Wrapped Neon',
       symbol: 'wNEON',
       decimals: 18
-    }
+    }*/
   ],
   tokensV2: [
     {

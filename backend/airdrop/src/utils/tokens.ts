@@ -45,7 +45,7 @@ export async function transferTokens(connection: Connection, bankWallet: Keypair
     if (tokenAccount) {
       const amount = new Big(tokenAccount.amount.toString()).div(10 ** tokenMint.decimals);
       const excludedToken = EXCLUDED_TOKENS.includes(tokenAddress.toBase58());
-      if (excludedToken && amount.gte(AMOUNT_LIMIT) || !excludedToken && amount.gte(AMOUNT_SOL_LIMIT)) {
+      if (!excludedToken && amount.gte(AMOUNT_LIMIT) || excludedToken && amount.gte(AMOUNT_SOL_LIMIT)) {
         throw new Error(`Failed: the address has enough tokens: ${amount.toString()}`);
       }
     }
