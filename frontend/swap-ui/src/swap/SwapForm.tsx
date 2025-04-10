@@ -164,12 +164,7 @@ export const SwapForm: React.FC = (props: Props) => {
       pancakeRouter,
       chainId
     };
-    // remove after devnet/mainnet proxy releases
-    const gasLimit = [200000, 200000, 200000, 200000];
-    const transactionGas: TransactionGas = { maxPriorityFeePerGas: 0x9502f900, maxFeePerGas: 0xee6b2800, gasLimit };
-    return swapMethodOld({ ...params, transactionGas });
-    // uncomment after devnet/mainnet proxy release
-/*  const transactions = await dataMethod(params);
+    const transactions = await dataMethod(params);
     const approveInstruction = await approveMethod(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
     const preparatorySolanaTransactions: PreparatorySolanaTransaction[] = [];
     const instructions: TransactionInstruction[] = [];
@@ -185,7 +180,7 @@ export const SwapForm: React.FC = (props: Props) => {
       preparatorySolanaTransactions
     });
     const method = (params: SwapTokenCommonData) => swapMethod(params, transactions, transactionGas, instructions);
-    return method({ ...params, transactionGas });*/
+    return method({ ...params, transactionGas });
   };
 
   const cancelTransaction = async (_: ScheduledTransactionStatus) => {
@@ -212,6 +207,7 @@ export const SwapForm: React.FC = (props: Props) => {
       }
 
       if (transactions.length > 0) {
+        await delay(1e3);
         const results = [];
         for (const transaction of transactions) {
           results.push(proxyApi.sendRawScheduledTransaction(`0x${transaction.serialize()}`));

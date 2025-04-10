@@ -23,7 +23,7 @@ async function main() {
   const contractV1 = 'contracts/erc20-for-spl/ERC20ForSPL.sol:ERC20ForSplMintable';
   const contractV2 = 'contracts/erc20-for-spl-v2/token/ERC20ForSpl/erc20_for_spl.sol:ERC20ForSplMintable';
 
-  await createPoolDeposit(connection);
+  await createPoolDeposit(connection, 2);
 
   const deployer = (await ethers.getSigners())[0];
   await deployerAirdrop(deployer, 10000);
@@ -36,8 +36,8 @@ async function main() {
     }
     for (const wallet of memberWallets) {
       const memberWallet = new PublicKey(wallet);
-      await transferSolToMemberWallet(connection, memberWallet, 10);
-      await transferTokenToMemberWallet(connection, solanaWallet, memberWallet, token, 100);
+      await transferSolToMemberWallet(connection, memberWallet, 1);
+      await transferTokenToMemberWallet(connection, solanaWallet, memberWallet, token, 1);
       await asyncTimeout(2e3);
     }
   }
@@ -46,17 +46,17 @@ async function main() {
     await transferERC20TokenToBankAccount(connection, solanaWallet, deployer, token, 10000, contractV2);
     for (const wallet of memberWallets) {
       const memberWallet = new PublicKey(wallet);
-      await transferTokenToMemberWallet(connection, solanaWallet, memberWallet, token, 100);
+      await transferTokenToMemberWallet(connection, solanaWallet, memberWallet, token, 1);
     }
   }
 }
 
-async function createPoolDeposit(connection) {
+async function createPoolDeposit(connection, amount) {
   const result = await getProxyState(process.env.NEON_EVM_NODE);
   const count = result.proxyStatus.neonTreasuryPoolCount;
   for (let index = 0; index < count; index++) {
     const [publicKey] = treasuryPoolAddressSync(result.evmProgramAddress, index);
-    await transferSolToMemberWallet(connection, publicKey, 20, 1e3);
+    await transferSolToMemberWallet(connection, publicKey, amount, 1e3);
   }
 }
 

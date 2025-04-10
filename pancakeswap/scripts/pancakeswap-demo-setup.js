@@ -126,7 +126,7 @@ async function main() {
   const b2Symbol = tokenBv2.symbol.toLowerCase();
 
   const result = {
-    tokensV1: [wNeon, tokenA, tokenB],
+    tokensV1: [/*wNeon, */tokenA, tokenB],
     tokensV2: [tokenAv2, tokenBv2],
     swap: {
       neonTokenTransfer: NEONAddress,
@@ -142,7 +142,13 @@ async function main() {
         [`${a2Symbol}/${b2Symbol}`]: pairAddressABv2,
         [`${b2Symbol}/${a2Symbol}`]: pairAddressABv2
       }
-    }
+    },
+    airdrop: [
+      tokenA.address_spl,
+      tokenB.address_spl,
+      tokenAv2.address_spl,
+      tokenBv2.address_spl
+    ]
   };
 
   const json = JSON.stringify(result, null, 2);

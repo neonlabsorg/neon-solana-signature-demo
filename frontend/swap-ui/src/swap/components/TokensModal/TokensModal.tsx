@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Transaction } from '@solana/web3.js';
 import { SPLToken } from '@neonevm/token-transfer-core';
 import Modal from 'react-modal';
@@ -33,24 +33,40 @@ function TokensModal(props: Props) {
     solanaUser,
     sendTransaction
   } = useProxyConnection();
+  const [isLoading, setLoading] = useState<boolean>(false);
 
   const tokenSelect = (token: CTokenBalance): void => {
     closeModal(token);
   };
 
   const tokenAirdrop = async ({ token }: CTokenBalance): Promise<TransactionResponse> => {
-    const amount = EXCLUDED_TOKENS.includes(token.address_spl) ? AMOUNT_SOL_REQUEST : AMOUNT_REQUEST;
-    const {
-      transaction,
-      message,
-      payload
-    } = await tokenAirdropTransaction(solanaUser.publicKey, token, PROXY_ENV, amount);
-    if (transaction) {
-      const recoveredTransaction = Transaction.from(bs58.decode(transaction));
-      await sendTransaction(recoveredTransaction);
-      await updateTokenBalance(token);
+    try {
+      setLoading(true);
+      const amount = EXCLUDED_TOKENS.includes(token.address_spl) ? AMOUNT_SOL_REQUEST : AMOUNT_REQUEST;
+      const {
+        transaction,
+        message,
+        payload
+      } = await tokenAirdropTransaction(solanaUser.publicKey, token, PROXY_ENV, amount);
+      if (transaction) {
+        const recoveredTransaction = Transaction.from(bs58.decode(transaction));
+        await sendTransaction(recoveredTransaction);
+        await updateTokenBalance(token);
+      }
+      return { transaction, message, payload };
+    } catch (e) {
+      console.log(e);
+      setLoading(false);
+    } finally {
+      setLoading(false);
     }
-    return { transaction, message, payload };
+  };
+
+  const firstTokenAirdrop = async (): Promise<void> => {
+    if (tokens.length) {
+      const [token] = tokens;
+      await tokenAirdrop(token);
+    }
   };
 
   const handleCloseModal = (): void => {
@@ -81,7 +97,7 @@ function TokensModal(props: Props) {
           {tokens.map(((token, key) =>
             <TokenItem token={token} tokenSelect={tokenSelect} tokenAirdrop={tokenAirdrop}
                        key={key} />))}
-          {isShowNotification && <div className="notification mt-[20px]">
+{/*          {isShowNotification && <div className="notification mt-[20px]">
             <div className="icon">
               <img src="/assets/icons/gift.svg" alt="Gift..." />
             </div>
@@ -90,7 +106,7 @@ function TokensModal(props: Props) {
               <p>For one wallet, you can request 10 test tokens per minute.</p>
               <p>{`You can get up to ${AMOUNT_AIRDROP} test tokens.`}</p>
             </div>
-          </div>}
+          </div>}*/}
         </div>
       </div>
     </Modal>

@@ -1,5 +1,4 @@
 const env = import.meta.env;
-
 const PROXY_ENV = env.VITE_PROXY_ENV;
 const SOLANA_URL = env.VITE_SOLANA_URL;
 const NEON_CORE_API_RPC_URL = env.VITE_NEON_CORE_API_RPC_URL;

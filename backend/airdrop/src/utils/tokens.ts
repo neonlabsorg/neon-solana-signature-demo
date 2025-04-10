@@ -35,6 +35,10 @@ export async function transferTokens(connection: Connection, bankWallet: Keypair
     const feePayer = wallet;
     const tokenMint = await getMint(connection, tokenAddress);
     const bankTokenAddress = getAssociatedTokenAddressSync(tokenMint.address, bankWallet.publicKey);
+    const bankAccount = await getAccount(connection, bankTokenAddress);
+    if (bankAccount && bankAccount.amount < amount) {
+      throw new Error(`Low bank account balance`);
+    }
     const [walletTokenAddress, tokenAccount, ataInstruction] = await getATAInstruction(connection, feePayer, tokenMint.address, wallet);
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
     const transaction = new Transaction({
@@ -68,9 +72,16 @@ export async function transferTokens(connection: Connection, bankWallet: Keypair
     transaction.partialSign(bankWallet);
     return bs58.encode(transaction.serialize({ requireAllSignatures: false }));
   } catch (e: any) {
+    const error = e.message ? e.message : e.name;
+    if (e instanceof TokenAccountNotFoundError) {
+      throw new ResponseError({
+        message: `Failed: unknown token: ${tokenAddress.toBase58()}`,
+        payload: { error }
+      });
+    }
     throw new ResponseError({
       message: `Failed: failed to retrieve the transaction`,
-      payload: { error: e.message }
+      payload: { error }
     });
   }
 }

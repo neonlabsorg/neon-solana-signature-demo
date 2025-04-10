@@ -153,7 +153,10 @@ async function createPairAndAddLiquidity(
     deployer.address
   );
 
-  return { pair: pairAddress, a: tokenAAddress, b: tokenBAddress };
+  const a = amountA > amountB ? tokenAAddress : tokenBAddress;
+  const b = amountB > amountA ? tokenAAddress : tokenBAddress;
+
+  return { pair: pairAddress, a, b };
 }
 
 async function createPair(

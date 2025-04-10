@@ -1,5 +1,5 @@
 export const addressesCurvestand = {
-  tokensV1: [
+  'tokensV1': [
     {
       'address': '0x0503Be7119b775BFC519c4F489C8D52521fEA207',
       'address_spl': '5cR4Gk8kWU2UMXnhLW59pFewwrYuTuZmYbTmGRPSQHBv',
@@ -15,7 +15,7 @@ export const addressesCurvestand = {
       'decimals': 12
     }
   ],
-  tokensV2: [
+  'tokensV2': [
     {
       'address': '0xB9ceE6f7a0DD67da20fca9A4158B0Efef4ba5577',
       'address_spl': '6QPr8XHKg2ohLg5xWpqNwbqwy6xrWZ7C389Z1hqVrZUD',
@@ -31,7 +31,7 @@ export const addressesCurvestand = {
       'decimals': 9
     }
   ],
-  swap: {
+  'swap': {
     'neonTokenTransfer': '0xb3bFD57D36D09209fFF3B5D4052c9c271FE11AAc',
     'router': '0xC3529Db933f3D28323CD825c666CBBAf5BDbF7f8',
     'factory': '0x1Be1a24E9BF504b35901c1b76fBf77766D6b7647',
@@ -78,7 +78,7 @@ export const addressesCurvestand = {
       }
     }
   },
-  airdrop: [
+  'airdrop': [
     '5cR4Gk8kWU2UMXnhLW59pFewwrYuTuZmYbTmGRPSQHBv',
     'BCjyKdb9sPZuqvMwnbUKMqYBuFSwDhe4Jz9x6MR4Qbvn',
     '6QPr8XHKg2ohLg5xWpqNwbqwy6xrWZ7C389Z1hqVrZUD',

@@ -10,10 +10,8 @@ const storage = new Map<string, number>();
 
 export async function airdropTransactionState(req: Request, res: Response): Promise<any> {
   const { wallet, token, network } = req.body;
-  if (storage.has(wallet)) {
-    const lastTrx = storage.get(wallet)!;
-    res.status(200).json({ lastTrx, wallet, token, network });
-  }
+  const lastTrx = storage.has(wallet) ? storage.get(wallet) : Math.floor(Date.now() / 1000);
+  res.status(200).json({ lastTrx, wallet, token, network });
 }
 
 export async function airdropTransaction(req: Request, res: Response, next: NextFunction): Promise<any> {
