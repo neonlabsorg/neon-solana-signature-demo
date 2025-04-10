@@ -58,9 +58,16 @@ function SwapState({ formState, loading, executeState, setLoading, transactionCa
   }, [loading, formState]);
 
   const explorerUrl = useMemo(() => {
-    const solscan = `https://solscan.io/tx/${formState.signature}?cluster=devnet`;
+    const solscan = `https://solscan.io/tx/${formState.signature}`;
     const solana = `https://explorer.solana.com/tx/${formState.signature}?cluster=custom&customUrl=${SOLANA_URL}`;
-    return PROXY_ENV === 'devnet' ? solscan : solana;
+    switch (PROXY_ENV) {
+      case 'mainnet':
+        return solscan;
+      case 'devnet':
+        return `${solscan}?cluster=devnet`;
+      default:
+        return solana;
+    }
   }, [formState.signature]);
 
   const handleCancel = async (trx: ScheduledTransactionStatus): Promise<void> => {
