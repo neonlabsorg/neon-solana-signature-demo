@@ -1,12 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Transaction } from '@solana/web3.js';
-import { SPLToken } from '@neonevm/token-transfer-core';
 import Modal from 'react-modal';
 import bs58 from 'bs58';
 import TokenItem from '../TokenItem/TokenItem';
 import { tokenAirdropTransaction } from '../../../api/tokens';
 import { useProxyConnection } from '../../../wallet/Connection';
-import { CTokenBalance, TransactionResponse } from '../../../models';
+import { CSPLToken, CTokenBalance, TransactionResponse } from '../../../models';
 import { PROXY_ENV } from '../../../environments';
 import './TokensModal.css';
 
@@ -18,7 +17,7 @@ interface Props {
   tokensList: CTokenBalance[];
   excludedToken: string;
 
-  updateTokenBalance(token: SPLToken): Promise<void>;
+  updateTokenBalance(token: CSPLToken): Promise<void>;
 }
 
 export const EXCLUDED_TOKENS = [`So11111111111111111111111111111111111111112`];
@@ -33,7 +32,6 @@ function TokensModal(props: Props) {
     solanaUser,
     sendTransaction
   } = useProxyConnection();
-  const [isLoading, setLoading] = useState<boolean>(false);
 
   const tokenSelect = (token: CTokenBalance): void => {
     closeModal(token);
@@ -41,7 +39,6 @@ function TokensModal(props: Props) {
 
   const tokenAirdrop = async ({ token }: CTokenBalance): Promise<TransactionResponse> => {
     try {
-      setLoading(true);
       const amount = EXCLUDED_TOKENS.includes(token.address_spl) ? AMOUNT_SOL_REQUEST : AMOUNT_REQUEST;
       const {
         transaction,
@@ -56,17 +53,8 @@ function TokensModal(props: Props) {
       return { transaction, message, payload };
     } catch (e) {
       console.log(e);
-      setLoading(false);
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const firstTokenAirdrop = async (): Promise<void> => {
-    if (tokens.length) {
-      const [token] = tokens;
-      await tokenAirdrop(token);
-    }
+    return { transaction: '' };
   };
 
   const handleCloseModal = (): void => {
@@ -76,10 +64,6 @@ function TokensModal(props: Props) {
   const tokens = useMemo<CTokenBalance[]>(() => {
     return tokensList.filter(t => t.token.symbol !== excludedToken);
   }, [tokensList, excludedToken]);
-
-  const isShowNotification = useMemo(() => {
-    return !!solanaUser && tokens.some(t => AMOUNT_AIRDROP > (t.balance?.uiAmount ?? 0));
-  }, [tokens, solanaUser]);
 
   return (
     <Modal isOpen={openModal} onRequestClose={handleCloseModal}
@@ -97,16 +81,6 @@ function TokensModal(props: Props) {
           {tokens.map(((token, key) =>
             <TokenItem token={token} tokenSelect={tokenSelect} tokenAirdrop={tokenAirdrop}
                        key={key} />))}
-{/*          {isShowNotification && <div className="notification mt-[20px]">
-            <div className="icon">
-              <img src="/assets/icons/gift.svg" alt="Gift..." />
-            </div>
-            <div className="notification-description">
-              <h4>Get tokens for tests</h4>
-              <p>For one wallet, you can request 10 test tokens per minute.</p>
-              <p>{`You can get up to ${AMOUNT_AIRDROP} test tokens.`}</p>
-            </div>
-          </div>}*/}
         </div>
       </div>
     </Modal>

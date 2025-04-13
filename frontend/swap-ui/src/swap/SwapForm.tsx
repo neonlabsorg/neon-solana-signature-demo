@@ -13,7 +13,7 @@ import {
   SolanaNeonAccount
 } from '@neonevm/solana-sign';
 import { SPLToken } from '@neonevm/token-transfer-core';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Big } from 'big.js';
 import { TokenField } from './components/TokenField/TokenField';
 import SwapState from './components/SwapState/SwapState';
@@ -31,6 +31,7 @@ import {
 import { estimateScheduledGas, estimateSwapAmount } from '../api/swap';
 import { PROXY_ENV } from '../environments';
 import './SwapForm.css';
+import { sendRawScheduledTransactions } from '../utils/rest.ts';
 
 interface FormData {
   from: { token: string, amount: string },
@@ -53,8 +54,8 @@ interface Props {
   swapMethodOld(params: SwapTokenCommonData): Promise<SwapTokensResponse>;
 }
 
-export const SwapForm: React.FC = (props: Props) => {
-  const { tokensList, dataMethod, approveMethod, swapMethod, swapMethodOld } = props;
+export const SwapForm = (props: Props) => {
+  const { tokensList, dataMethod, approveMethod, swapMethod } = props;
   const { connected, publicKey } = useWallet();
   const [tokenBalanceList, setTokenBalanceList] = useState<CTokenBalance[]>([]);
   const { connection } = useConnection();
@@ -88,7 +89,7 @@ export const SwapForm: React.FC = (props: Props) => {
       Number(from.amount) > Number(tokenFrom?.balance?.uiAmount);
   }, [formData, tokenBalanceList]);
 
-  const tokenFromTo = useMemo<[CSPLToken, CSPLToken]>(() => {
+  const tokenFromTo = useMemo<CSPLToken[]>(() => {
     if (tokensList.length > 0) {
       const tokenFrom = tokensList.find(t => t.symbol === formData.from.token)!;
       const tokenTo = tokensList.find(t => t.symbol === formData.to.token)!;
@@ -208,11 +209,7 @@ export const SwapForm: React.FC = (props: Props) => {
 
       if (transactions.length > 0) {
         await delay(1e3);
-        const results = [];
-        for (const transaction of transactions) {
-          results.push(proxyApi.sendRawScheduledTransaction(`0x${transaction.serialize()}`));
-        }
-        const resultsHash = await Promise.all(results);
+        const resultsHash = await sendRawScheduledTransactions(proxyApi.rpcUrl, transactions.map(t => t.serialize()));
         logJson(resultsHash);
 
         const start = Date.now();

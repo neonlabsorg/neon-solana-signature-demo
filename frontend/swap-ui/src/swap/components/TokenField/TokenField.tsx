@@ -1,5 +1,5 @@
 import { SPLToken } from '@neonevm/token-transfer-core';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import AmountInput from 'react-currency-input-field';
 import { Big } from 'big.js';
 import { CTokenBalance } from '../../../models';
@@ -17,13 +17,13 @@ type Props = {
   label: string;
   tokensList: CTokenBalance[];
   excludedToken: string;
-  disabled: boolean;
+  disabled?: boolean;
   loading: boolean;
   setTokenData(type: 'from' | 'to', data: { token: string; amount: string; }): void;
   updateTokenBalance(token: SPLToken): Promise<void>;
 };
 
-export const TokenField: React.FC = (props: Props) => {
+export const TokenField = (props: Props) => {
   const {
     data, tokensList, type,
     label, setTokenData, updateTokenBalance, excludedToken, disabled, loading, maxAmount
@@ -41,7 +41,7 @@ export const TokenField: React.FC = (props: Props) => {
 
   const tokenIcon = useMemo(() => {
     const symbol = token?.token.symbol.toLowerCase();
-    const icon = Object.prototype.hasOwnProperty.call(tokenIcons, symbol!) ? tokenIcons[symbol] : 'token.svg';
+    const icon = symbol && tokenIcons[symbol] ? tokenIcons[symbol] : 'token.svg';
     return `/tokens/${icon}`;
   }, [token]);
 
@@ -69,14 +69,11 @@ export const TokenField: React.FC = (props: Props) => {
     setOpenModal(false);
   };
 
-  const handleInput = (amount: string): void => {
+  const handleInput = (amount?: string): void => {
     const b = Number(amount);
     const a = b < 0 ? '0' : b > maxAmount ? maxAmount.toString() : amount;
     const c = a ? a : '';
     setTokenData(type, { amount: c, token: data.token });
-  };
-
-  const handleWallet = async (): Promise<bigint> => {
   };
 
   return (
@@ -84,7 +81,7 @@ export const TokenField: React.FC = (props: Props) => {
       <div className="form-label">
         <label>{label}</label>
         <div className="wallet-amount">
-          <div className="button-back" onClick={handleWallet}>
+          <div className="button-back">
             <img src="/assets/icons/wallet.svg" alt="" />
           </div>
           <span className="amount">{tokenBalance}</span>
@@ -103,7 +100,7 @@ export const TokenField: React.FC = (props: Props) => {
           {loading && <div className="absolute right-[-18px] top-[9px] animate-spin">
             <img src="/assets/icons/loading.svg" width="15px" height="15px" alt="" />
           </div>}
-          <AmountInput decimalsLimit={token?.decimals} onValueChange={handleInput}
+          <AmountInput decimalsLimit={token?.token?.decimals} onValueChange={handleInput}
                        value={data.amount} placeholder="0.00" disabled={disabled}
                        className={`transition-all ${loading ? 'opacity-75' : ''}`}
                        intlConfig={{ locale: 'en-UA' }} />

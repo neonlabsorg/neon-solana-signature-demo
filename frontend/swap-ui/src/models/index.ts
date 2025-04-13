@@ -7,10 +7,10 @@ import {
   ScheduledTransaction,
   ScheduledTreeAccount,
   SolanaAddress,
-  SolanaNeonAccount
+  SolanaNeonAccount,
+  TransactionStatus
 } from '@neonevm/solana-sign';
 import { JsonRpcProvider } from 'ethers';
-import { TransactionStatus } from '@neonevm/solana-sign/dist/types/models/api';
 
 export type Props = {
   readonly children: React.ReactNode;

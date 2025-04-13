@@ -505,7 +505,7 @@ export async function createATAInstruction(connection: Connection, solanaUser: S
   return instruction;
 }
 
-export async function estimateSwapAmount(provider: JsonRpcProvider, tokenFromTo: [CSPLToken, CSPLToken], amountFrom: string, pancakeRouter: NeonAddress, pancakePair: PancakePair): Promise<bigint> {
+export async function estimateSwapAmount(provider: JsonRpcProvider, tokenFromTo: CSPLToken[], amountFrom: string, pancakeRouter: NeonAddress, pancakePair: PancakePair): Promise<bigint> {
   try {
     const [tokenFrom] = tokenFromTo;
     const amountIn = new Big(amountFrom).times(new Big(10).pow(tokenFrom.decimals));

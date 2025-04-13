@@ -1,10 +1,10 @@
 import { delay } from '@neonevm/solana-sign';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { tokenIcons } from '../../../data/tokens';
+import { PROXY_ENV } from '../../../environments';
 import { useProxyConnection } from '../../../wallet/Connection';
 import { CTokenBalance, TransactionResponse } from '../../../models';
 import { lastAridropTransactionState } from '../../../api/tokens';
-import { PROXY_ENV } from '../../../environments';
 import { AMOUNT_AIRDROP, AMOUNT_SOL_AIRDROP, EXCLUDED_TOKENS } from '../TokensModal/TokensModal';
 import './TokenItem.css';
 
@@ -12,7 +12,8 @@ const TRANSACTION_INTERVAL = 60;
 
 function TokenItem({ token, tokenSelect, tokenAirdrop }: {
   token: CTokenBalance;
-  tokenSelect(token: CTokenBalance);
+
+  tokenSelect(token: CTokenBalance): void;
   tokenAirdrop(token: CTokenBalance): Promise<TransactionResponse>;
 }) {
   const [loading, setLoading] = useState<boolean>(false);

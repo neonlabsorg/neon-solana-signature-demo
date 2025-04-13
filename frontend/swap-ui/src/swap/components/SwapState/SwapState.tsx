@@ -1,10 +1,10 @@
 import { ScheduledTransactionStatus } from '@neonevm/solana-sign';
-import React, { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 import { PROXY_ENV, SOLANA_URL } from '../../../environments';
 import { FormState } from '../../../models';
 import './SwapState.css';
 
-const Status: FC = ({ formState, loading }: { formState: FormState, loading: boolean }) => {
+const Status = ({ formState, loading }: { formState: FormState, loading: boolean }) => {
   const status = useMemo(() => {
     const status = formState.status;
     switch (status) {
@@ -27,8 +27,6 @@ const Status: FC = ({ formState, loading }: { formState: FormState, loading: boo
   return (
     <>
       <div className="form-state-loading">
-        {status === 'loading-gray' &&
-          <img className="loading" src="/assets/icons/loading-gray.svg" alt="Loading..." />}
         {status === 'loading' &&
           <img className="loading" src="/assets/icons/loading.svg" alt="Loading..." />}
         {status === 'success' && <img src="/assets/icons/check.svg" alt="Success" />}
@@ -102,7 +100,7 @@ function SwapState({ formState, loading, executeState, setLoading, transactionCa
         <div className="form-state-title-item title">
           <div className="form-state-number">{formState.id + 1}</div>
           <div className="title">{formState.title}</div>
-          {formState.signature?.length > 0 && <a href={explorerUrl} target="_blank">
+          {formState.signature && formState.signature?.length > 0 && <a href={explorerUrl} target="_blank">
             <img src="/assets/solscan.webp" width={18} height={18} alt="" />
           </a>}
         </div>
