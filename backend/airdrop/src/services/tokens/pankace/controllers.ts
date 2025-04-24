@@ -37,10 +37,10 @@ export function addressesList(env: SolanaEnvironment): Addresses {
   return { swap, airdrop, tokensV1, tokensV2 };
 }
 
-export async function tokens(req: Request, res: Response): Promise<any> {
+export async function pancakeTokens(req: Request, res: Response): Promise<any> {
   try {
     const { network } = req.params;
-    const body = await addressesList(network as SolanaEnvironment);
+    const body = addressesList(network as SolanaEnvironment);
     res.status(200).json(body);
   } catch (err: any) {
     log(err);

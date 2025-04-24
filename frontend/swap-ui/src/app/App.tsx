@@ -20,9 +20,9 @@ import {
 
 function App() {
   const tabs: UITab[] = [
-    { id: 0, title: 'v1', disabled: false },
-    // { id: 1, title: 'v1-2', disabled: true },
-    { id: 2, title: 'v2', disabled: true }
+    // { id: 0, title: 'v1', disabled: false },
+    { id: 1, title: 'v1-2', disabled: false },
+    { id: 2, title: 'v2', disabled: false }
   ];
   const [tab, setTab] = useState<UITab>(tabs[0]);
   const { publicKey } = useWallet();
@@ -69,7 +69,7 @@ function App() {
                                      approveMethod={approveTokenV1Instruction}
                                      swapMethod={swapTokensMultipleWithGasFee}
                                      swapMethodOld={approveSwapAndWithdrawTokensMultiple}></SwapForm>}
-          {tab.id === 1 && <SwapForm tokensList={addresses.tokensV2}
+          {tab.id === 1 && <SwapForm tokensList={addresses.tokensV1}
                                      dataMethod={v2DataMethod}
                                      approveMethod={approveTokenV2Instruction}
                                      swapMethod={swapTokensMultipleWithGasFee}

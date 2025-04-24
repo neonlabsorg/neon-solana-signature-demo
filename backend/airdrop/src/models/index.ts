@@ -16,6 +16,12 @@ export interface Addresses {
   tokensV2: CSPLToken[];
 }
 
+export interface CurveAddresses {
+  contracts: string[];
+  airdrop: string[];
+  tokens: CSPLToken[];
+}
+
 export const enum SolanaEnvironment {
   curvestand = 'curvestand',
   localnet = 'localnet',

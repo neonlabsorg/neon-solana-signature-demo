@@ -29,4 +29,8 @@ app.get('/version', (req: Request, res: Response) => {
   res.json({ version: process.env.npm_package_version });
 });
 
+app.all('/account', (req, res, next) => {
+  res.status(405).send({ status: 'Method not allowed' });
+});
+
 app.listen(port, () => console.log(`[server]: Server is running at http://localhost:${port}`));

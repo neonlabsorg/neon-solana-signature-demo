@@ -43,7 +43,7 @@ const DELAY = 1e3;
 const MAX_AMOUNT = PROXY_ENV === 'devnet' ? 10 : 20;
 
 interface Props {
-  tokensList: SPLToken[];
+  tokensList: CSPLToken[];
 
   dataMethod(params: SwapTokenData): Promise<EstimateScheduledTransaction[]>;
 

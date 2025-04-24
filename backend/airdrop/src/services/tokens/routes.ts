@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { tokens } from '@services/tokens/controllers';
+import { pancakeTokens } from '@services/tokens/pankace/controllers';
+import { curveTokens } from '@services/tokens/curve/controllers';
 
 const tokensRouter = Router();
 
 /*
 * :network = 'localnet' | 'devnet' | 'mainnet'
 * */
-tokensRouter.get(`/:network`, tokens);
+tokensRouter.get(`/:network`, pancakeTokens);
+tokensRouter.get(`/curve/:network`, curveTokens);
 
 export { tokensRouter };

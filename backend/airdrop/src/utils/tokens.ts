@@ -26,11 +26,12 @@ import bs58 from 'bs58';
 import { Big } from 'big.js';
 
 export const AMOUNT_LIMIT = 20;
+export const AMOUNT_CURVE_LIMIT = 300;
 export const AMOUNT_SOL_LIMIT = 0.5;
 export const AIRDROP_SOL_LIMIT = 0.1;
 export const EXCLUDED_TOKENS = [`So11111111111111111111111111111111111111112`];
 
-export async function transferTokens(connection: Connection, bankWallet: Keypair, wallet: PublicKey, tokenAddress: PublicKey, amount: bigint): Promise<string> {
+export async function transferTokens(connection: Connection, bankWallet: Keypair, wallet: PublicKey, tokenAddress: PublicKey, amount: bigint, isPancakeSwapToken = false): Promise<string> {
   try {
     const feePayer = wallet;
     const tokenMint = await getMint(connection, tokenAddress);
@@ -49,7 +50,9 @@ export async function transferTokens(connection: Connection, bankWallet: Keypair
     if (tokenAccount) {
       const amount = new Big(tokenAccount.amount.toString()).div(10 ** tokenMint.decimals);
       const excludedToken = EXCLUDED_TOKENS.includes(tokenAddress.toBase58());
-      if (!excludedToken && amount.gte(AMOUNT_LIMIT) || excludedToken && amount.gte(AMOUNT_SOL_LIMIT)) {
+      if (!excludedToken && (isPancakeSwapToken && amount.gte(AMOUNT_LIMIT) ||
+        !isPancakeSwapToken && amount.gte(AMOUNT_CURVE_LIMIT)) ||
+        excludedToken && amount.gte(AMOUNT_SOL_LIMIT)) {
         throw new Error(`Failed: the address has enough tokens: ${amount.toString()}`);
       }
     }

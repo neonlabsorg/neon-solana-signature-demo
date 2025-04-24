@@ -1,10 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 import { PublicKey } from '@solana/web3.js';
+import { AIRDROP_LIMIT, TRANSACTION_INTERVAL } from '@environment';
 import { AIRDROP_SOL_LIMIT, EXCLUDED_TOKENS, transferTokens } from '@utils/tokens';
 import { solanaBankWallet, solanaConnection } from '@utils/solana';
-import { AIRDROP_LIMIT, TRANSACTION_INTERVAL } from '@environment';
-import { ResponseError } from '@utils/error';
 import { log } from '@utils/log';
+import { ResponseError } from '@utils/error';
+import { addressesList } from '@services/tokens/pankace/controllers';
 
 const storage = new Map<string, number>();
 
@@ -21,7 +22,10 @@ export async function airdropTransaction(req: Request, res: Response, next: Next
     const bankWallet = solanaBankWallet(network);
     const walletAddress = new PublicKey(wallet);
     const tokenAddress = new PublicKey(token);
-    if (Number(amount) > Number(AIRDROP_LIMIT)) {
+    const { tokensV1, tokensV2 } = addressesList(network);
+    const isPancakeSwapToken = (tokensV1.some(i => i.address_spl === token) ||
+      tokensV2.some(i => i.address_spl === token));
+    if (isPancakeSwapToken && Number(amount) > Number(AIRDROP_LIMIT)) {
       throw new ResponseError({
         message: `Failed: trying to get a large amount`,
         payload: { limit: AIRDROP_LIMIT }
@@ -43,7 +47,7 @@ export async function airdropTransaction(req: Request, res: Response, next: Next
         });
       }
     }
-    const transaction = await transferTokens(connection, bankWallet, walletAddress, tokenAddress, amount);
+    const transaction = await transferTokens(connection, bankWallet, walletAddress, tokenAddress, amount, isPancakeSwapToken);
     res.status(200).json({ transaction });
     storage.set(wallet, Math.round(Date.now() / 1e3));
   } catch (err: any) {
