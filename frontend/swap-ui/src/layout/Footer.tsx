@@ -1,4 +1,3 @@
-import React from 'react';
 declare const APP_VERSION: string;
 
 const Footer = () => {

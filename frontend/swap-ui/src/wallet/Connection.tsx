@@ -1,16 +1,8 @@
-import { createContext, FC, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, FC, useContext, useEffect, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { Commitment, PublicKey, SendOptions, Transaction } from '@solana/web3.js';
 import { solanaTransactionLog } from '@neonevm/token-transfer-core';
-import {
-  delay,
-  getGasToken,
-  getProxyState,
-  log,
-  logJson,
-  NeonProxyRpcApi,
-  SolanaNeonAccount
-} from '@neonevm/solana-sign';
+import { delay, log, logJson, NeonProxyRpcApi, SolanaNeonAccount } from '@neonevm/solana-sign';
 import { JsonRpcProvider } from 'ethers';
 import { Big } from 'big.js';
 import { NEON_CORE_API_RPC_URL, PROXY_ENV, SOLANA_URL } from '../environments';
@@ -36,19 +28,21 @@ export interface ProxyConnectionContextData {
 
 export const ProxyConnectionContext = createContext<ProxyConnectionContextData>({} as ProxyConnectionContextData);
 export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
-  const { connected, publicKey, signTransaction } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const [neonEvmProgram, setEvmProgramAddress] = useState<PublicKey>();
   const [proxyApi, setProxyApi] = useState<NeonProxyRpcApi>();
   const [tokenMint, setTokenMint] = useState<PublicKey>();
   const [chainId, setChainId] = useState<number>();
+  const [solanaUser, setSolanaUser] = useState<SolanaNeonAccount>();
+  const [provider, setProvider] = useState<JsonRpcProvider>();
   const [walletBalance, setWalletBalance] = useState(0);
   const data = tokens(PROXY_ENV);
   const [addresses, setAddresses] = useState<TokensListResponse>(data);
   let watchAccountId: number;
 
   const sendTransaction = async (transaction: Transaction, commitment: Commitment = 'confirmed', options?: SendOptions): Promise<string | undefined> => {
-    if (signTransaction) {
+    if (signTransaction && solanaUser) {
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(commitment);
       transaction.recentBlockhash = transaction.recentBlockhash ? transaction.recentBlockhash : blockhash;
       transaction.lastValidBlockHeight = transaction.lastValidBlockHeight ? transaction.lastValidBlockHeight : lastValidBlockHeight;
@@ -73,16 +67,6 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
     }
   };
 
-  const solanaUser = useMemo<SolanaNeonAccount>(() => {
-    if (connected && publicKey && neonEvmProgram && tokenMint && chainId) {
-      return new SolanaNeonAccount(publicKey, neonEvmProgram, tokenMint, chainId);
-    }
-  }, [connected, publicKey, neonEvmProgram, tokenMint, chainId]);
-
-  const provider = useMemo<JsonRpcProvider>(() => {
-    return new JsonRpcProvider(`${NEON_CORE_API_RPC_URL}/sol`);
-  }, []);
-
   const getWalletBalance = async () => {
     try {
       if (publicKey && connection) {
@@ -105,14 +89,22 @@ export const ProxyConnectionProvider: FC<Props> = ({ children }) => {
 
   useEffect(() => {
     (async () => {
-      const result = await getProxyState(`${NEON_CORE_API_RPC_URL}/sol`);
-      setEvmProgramAddress(result.evmProgramAddress);
-      setProxyApi(result.proxyApi);
-      setChainId(result.chainId);
-      const token = getGasToken(result.tokensList, result.chainId);
-      setTokenMint(token.tokenMintAddress);
+      const proxyApi = new NeonProxyRpcApi(`${NEON_CORE_API_RPC_URL}/sol`);
+      setProxyApi(proxyApi);
+      const {
+        provider,
+        chainId,
+        solanaUser,
+        tokenMintAddress,
+        programAddress
+      } = await proxyApi.init(publicKey!);
+      setChainId(chainId);
+      setProvider(provider);
+      setSolanaUser(solanaUser);
+      setEvmProgramAddress(programAddress);
+      setTokenMint(tokenMintAddress);
     })();
-  }, [provider]);
+  }, [publicKey]);
 
   useEffect(() => {
     getWalletBalance().then();

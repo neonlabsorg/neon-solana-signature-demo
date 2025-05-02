@@ -1,43 +1,45 @@
 import { afterEach, beforeAll, describe, it } from '@jest/globals';
-import { Connection, Keypair, PublicKey, Signer, TransactionInstruction } from '@solana/web3.js';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Signer,
+  Transaction,
+  TransactionInstruction
+} from '@solana/web3.js';
 import {
   delay,
-  EstimateScheduledTransaction,
-  getGasToken,
-  getProxyState,
   log,
   logJson,
   NeonAddress,
   NeonProxyRpcApi,
   PreparatorySolanaTransaction,
   prepareSolanaInstruction,
+  ScheduledTransaction,
   ScheduledTreeAccount,
   solanaAirdrop,
-  SolanaNeonAccount
+  SolanaNeonAccount,
+  TransactionData
 } from '@neonevm/solana-sign';
 import { JsonRpcProvider } from 'ethers';
 import { config } from 'dotenv';
 import process from 'node:process';
+import bs58 from 'bs58';
 import {
-  approveSwapAndWithdrawTokensMultiple,
   approveTokensForSwapTransactionData,
   approveTokenV1Instruction,
   approveTokenV2Instruction,
-  estimateScheduledGas,
   pancakeSwapTransactionData,
-  swapTokensMultipleV2,
-  swapTokensMultipleWithGasFee,
   transferTokenToNeonTransactionData,
   transferTokenToSolanaTransactionData
 } from '../src/api/swap';
-import { PancakePair, SwapTokenCommonData, SwapTokenData, SwapTokensResponse } from '../src/models';
+import { PancakePair, SwapTokenData } from '../src/models';
 import {
   sendSolanaTransaction,
   tokenAccountBalance,
   transferTokenToMemberWallet
 } from '../src/utils/solana';
 import { tokens } from '../src/data/tokens';
-import bs58 from 'bs58';
 
 config({ path: './tests/.env' });
 
@@ -54,7 +56,6 @@ let connection: Connection;
 let proxyApi: NeonProxyRpcApi;
 let provider: JsonRpcProvider;
 let neonEvmProgram: PublicKey;
-let chainTokenMint: PublicKey;
 let solanaUser: SolanaNeonAccount;
 let signer: Signer;
 let chainId: number;
@@ -63,16 +64,12 @@ const solanaPayer = Keypair.fromSecretKey(bs58.decode(SOLANA_WALLET));
 
 beforeAll(async () => {
   const keypair = Keypair.fromSecretKey(bs58.decode(SOLANA_WALLET));// new Keypair();
-  const result = await getProxyState(NEON_API_RPC_SOL_URL);
   connection = new Connection(SOLANA_URL);
-  provider = new JsonRpcProvider(NEON_API_RPC_SOL_URL);
-  proxyApi = result.proxyApi;
-  neonEvmProgram = result.evmProgramAddress;
-  const { chainId: chainIdB } = await provider.getNetwork();
-  chainId = Number(chainIdB);
-  const token = getGasToken(result.tokensList, chainId);
-  chainTokenMint = new PublicKey(token.tokenMintAddress);
-  solanaUser = SolanaNeonAccount.fromKeypair(keypair, neonEvmProgram, chainTokenMint, chainId);
+  proxyApi = new NeonProxyRpcApi(NEON_API_RPC_SOL_URL);
+  const params = await proxyApi.init(keypair);
+  neonEvmProgram = params.programAddress;
+  chainId = params.chainId;
+  solanaUser = params.solanaUser;
   signer = solanaUser.signer!;
 
   await solanaAirdrop(connection, keypair.publicKey, 1e9);
@@ -126,25 +123,27 @@ describe('Check Swap with Solana singer', () => {
       instructions.push(approveInstruction);
     }
 
-    const transactionData: EstimateScheduledTransaction[] = [
+    const transactionsData: TransactionData[] = [
       claimTransaction,
       approveSwapTransaction,
       swapTransaction,
       transferSolanaTransaction
     ];
 
-    const transactionGas = await estimateScheduledGas(proxyApi, {
-      scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
-      transactions: transactionData,
+    const transactionGas = await proxyApi.estimateScheduledTransactionGas({
+      solanaPayer: solanaUser.publicKey,
+      transactions: transactionsData,
       preparatorySolanaTransactions
     });
 
-    const method = (params: SwapTokenCommonData) => swapTokensMultipleWithGasFee(params, transactionData, transactionGas, instructions);
+    const { transactions, scheduledTransaction } = await proxyApi.createMultipleTransaction({
+      nonce,
+      transactionGas,
+      transactionsData,
+      solanaInstructions: instructions
+    });
 
-    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest({
-      ...params,
-      transactionGas
-    }, method);
+    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest(params, scheduledTransaction, transactions);
     expect(treeAccountResult?.activeStatus).toBe('Success');
     expect(balanceToAfter).toBeGreaterThan(balanceToBefore);
   });
@@ -185,198 +184,42 @@ describe('Check Swap with Solana singer', () => {
     const approveSwapTransaction = approveTokensForSwapTransactionData(params);
     const swapTransaction = pancakeSwapTransactionData(params);
 
-    const transactionData = [
+    const transactionsData: TransactionData[] = [
       approveSwapTransaction,
       swapTransaction
     ];
 
-    const transactionGas = await estimateScheduledGas(proxyApi, {
-      scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
-      transactions: transactionData,
+    const transactionGas = await proxyApi.estimateScheduledTransactionGas({
+      solanaPayer: solanaUser.publicKey,
+      transactions: transactionsData,
       preparatorySolanaTransactions
     });
 
-    const method = (params: SwapTokenCommonData) => swapTokensMultipleWithGasFee(params, transactionData, transactionGas, instructions);
-    const swapParams: SwapTokenCommonData = { ...params, transactionGas };
-    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest(swapParams, method);
-
-    expect(treeAccountResult?.activeStatus).toBe('Success');
-    expect(balanceToAfter).toBeGreaterThan(balanceToBefore);
-  });
-
-  it(`Should Swap tokens v1 (from, to)`, async () => {
-    const [tokenFrom, tokenTo] = tokensV1;
-    const pancakeRouter: NeonAddress = swap.router;
-    const pancakePair: PancakePair = swap.pairs[`${tokenFrom.symbol.toLowerCase()}/${tokenTo.symbol.toLowerCase()}`];
-    const amountFrom = 0.1;
-    const amountTo = 0.2;
-    const nonce = Number(await proxyApi.getTransactionCount(solanaUser.neonWallet));
-    const { maxPriorityFeePerGas, maxFeePerGas } = await proxyApi.getMaxFeePerGas();
-
-    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest({
+    const { scheduledTransaction, transactions } = await proxyApi.createMultipleTransaction({
       nonce,
-      proxyApi,
-      provider,
-      connection,
-      solanaUser,
-      neonEvmProgram,
-      pancakePair,
-      pancakeRouter,
-      amountFrom,
-      amountTo,
-      tokenFrom,
-      tokenTo,
-      chainId,
-      transactionGas: {
-        maxPriorityFeePerGas,
-        maxFeePerGas,
-        gasLimit: [1e7, 1e7, 1e7, 1e7]
-      }
-    }, approveSwapAndWithdrawTokensMultiple);
-    expect(treeAccountResult?.activeStatus).toBe('Success');
-    expect(balanceToAfter).toBeGreaterThan(balanceToBefore);
-  });
+      transactionGas,
+      transactionsData,
+      solanaInstructions: instructions
+    });
 
-  it(`Should Swap tokens v1 (to, from)`, async () => {
-    const [tokenTo, tokenFrom] = tokensV1;
-    const pancakeRouter: NeonAddress = swap.router;
-    const pancakePair: PancakePair = swap.pairs[`${tokenFrom.symbol.toLowerCase()}/${tokenTo.symbol.toLowerCase()}`];
-    const amountFrom = 0.1;
-    const amountTo = 0.2;
-    const nonce = Number(await proxyApi.getTransactionCount(solanaUser.neonWallet));
-    const { maxPriorityFeePerGas, maxFeePerGas } = await proxyApi.getMaxFeePerGas();
+    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest(params, scheduledTransaction, transactions);
 
-    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest({
-      nonce,
-      proxyApi,
-      provider,
-      connection,
-      solanaUser,
-      neonEvmProgram,
-      pancakePair,
-      pancakeRouter,
-      amountFrom,
-      amountTo,
-      tokenFrom,
-      tokenTo,
-      chainId,
-      transactionGas: {
-        maxPriorityFeePerGas,
-        maxFeePerGas,
-        gasLimit: [1e7, 1e7, 1e7, 1e7]
-      }
-    }, approveSwapAndWithdrawTokensMultiple);
-    expect(treeAccountResult?.activeStatus).toBe('Success');
-    expect(balanceToAfter).toBeGreaterThan(balanceToBefore);
-  });
-
-  it(`Should Swap tokens v2 (from, to)`, async () => {
-    const [tokenFrom, tokenTo] = tokensV2;
-    const pancakeRouter: NeonAddress = swap.router;
-    const pancakePair: PancakePair = swap.pairs[`${tokenFrom.symbol.toLowerCase()}/${tokenTo.symbol.toLowerCase()}`];
-    const amountFrom = 0.1;
-    const amountTo = 0.2;
-    const nonce = Number(await proxyApi.getTransactionCount(solanaUser.neonWallet));
-    const { maxPriorityFeePerGas, maxFeePerGas } = await proxyApi.getMaxFeePerGas();
-
-    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest({
-      nonce,
-      proxyApi,
-      provider,
-      connection,
-      solanaUser,
-      neonEvmProgram,
-      pancakePair,
-      pancakeRouter,
-      amountFrom,
-      amountTo,
-      tokenFrom,
-      tokenTo,
-      chainId,
-      transactionGas: {
-        maxPriorityFeePerGas,
-        maxFeePerGas,
-        gasLimit: [1e7, 1e7, 1e7, 1e7]
-      }
-    }, swapTokensMultipleV2);
-    expect(treeAccountResult?.activeStatus).toBe('Success');
-    expect(balanceToAfter).toBeGreaterThan(balanceToBefore);
-  });
-
-  it(`Should Swap tokens v2 (to, from)`, async () => {
-    const [tokenTo, tokenFrom] = tokensV2;
-    const pancakeRouter: NeonAddress = swap.router;
-    const pancakePair: PancakePair = swap.pairs[`${tokenFrom.symbol.toLowerCase()}/${tokenTo.symbol.toLowerCase()}`];
-    const amountFrom = 0.1;
-    const amountTo = 0.2;
-    const nonce = Number(await proxyApi.getTransactionCount(solanaUser.neonWallet));
-    const { maxPriorityFeePerGas, maxFeePerGas } = await proxyApi.getMaxFeePerGas();
-
-    const [treeAccountResult, balanceToBefore, balanceToAfter] = await swapTest({
-      nonce,
-      proxyApi,
-      provider,
-      connection,
-      solanaUser,
-      neonEvmProgram,
-      pancakePair,
-      pancakeRouter,
-      amountFrom,
-      amountTo,
-      tokenFrom,
-      tokenTo,
-      chainId,
-      transactionGas: {
-        maxPriorityFeePerGas,
-        maxFeePerGas,
-        gasLimit: [1e7, 1e7, 1e7, 1e7]
-      }
-    }, swapTokensMultipleV2);
     expect(treeAccountResult?.activeStatus).toBe('Success');
     expect(balanceToAfter).toBeGreaterThan(balanceToBefore);
   });
 });
 
-const swapTest = async (params: SwapTokenCommonData, method: (params: SwapTokenCommonData) => Promise<SwapTokensResponse>): Promise<[ScheduledTreeAccount | null, bigint, bigint]> => {
+const swapTest = async (params: SwapTokenData, scheduledTransaction: Transaction, transactions: ScheduledTransaction[]): Promise<[ScheduledTreeAccount | null, bigint, bigint]> => {
   const {
     nonce,
     proxyApi,
-    provider,
     connection,
     solanaUser,
-    neonEvmProgram,
-    pancakePair,
-    pancakeRouter,
-    amountFrom,
-    amountTo,
-    tokenFrom,
-    tokenTo,
-    chainId,
-    transactionGas
+    tokenTo
   } = params;
   const balanceToBefore = await tokenAccountBalance(connection, solanaUser, tokenTo);
-  const { scheduledTransaction, transactions } = await method({
-    nonce,
-    proxyApi,
-    provider,
-    connection,
-    solanaUser,
-    neonEvmProgram,
-    pancakePair,
-    pancakeRouter,
-    amountFrom,
-    amountTo,
-    tokenFrom,
-    tokenTo,
-    chainId,
-    transactionGas
-  });
   await sendSolanaTransaction(connection, scheduledTransaction, [signer]);
-  const results = [];
-  for (const transaction of transactions) {
-    results.push(proxyApi.sendRawScheduledTransaction(`0x${transaction.serialize()}`));
-  }
-  const resultsHash = await Promise.all(results);
+  const resultsHash = await proxyApi.sendRawScheduledTransactions(transactions.map(i => i.serialize()));
   logJson(resultsHash);
 
   const start = Date.now();

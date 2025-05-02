@@ -3,14 +3,14 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Connection, PublicKey, TokenAmount, TransactionInstruction } from '@solana/web3.js';
 import {
   delay,
-  EstimateScheduledTransaction,
   log,
   logJson,
   NeonAddress,
   PreparatorySolanaTransaction,
   prepareSolanaInstruction,
   ScheduledTransactionStatus,
-  SolanaNeonAccount
+  SolanaNeonAccount,
+  TransactionData
 } from '@neonevm/solana-sign';
 import { SPLToken } from '@neonevm/token-transfer-core';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -23,15 +23,12 @@ import {
   CTokenBalance,
   FormState,
   PancakePair,
-  SwapTokenCommonData,
   SwapTokenData,
-  SwapTokensResponse,
-  TransactionGas
+  SwapTokensResponse
 } from '../models';
-import { estimateScheduledGas, estimateSwapAmount } from '../api/swap';
+import { createATAInstruction, estimateSwapAmount } from '../api/swap';
 import { PROXY_ENV } from '../environments';
 import './SwapForm.css';
-import { sendRawScheduledTransactions } from '../utils/rest.ts';
 
 interface FormData {
   from: { token: string, amount: string },
@@ -45,17 +42,13 @@ const MAX_AMOUNT = PROXY_ENV === 'devnet' ? 10 : 20;
 interface Props {
   tokensList: CSPLToken[];
 
-  dataMethod(params: SwapTokenData): Promise<EstimateScheduledTransaction[]>;
+  dataMethod(params: SwapTokenData): Promise<TransactionData[]>;
 
   approveMethod(connection: Connection, solanaUser: SolanaNeonAccount, neonEvmProgram: PublicKey, token: CSPLToken, amount: number): Promise<TransactionInstruction | null>;
-
-  swapMethod(params: SwapTokenData, transactionData: EstimateScheduledTransaction[], transactionGas: TransactionGas, instructions: TransactionInstruction[]): Promise<SwapTokensResponse>;
-
-  swapMethodOld(params: SwapTokenCommonData): Promise<SwapTokensResponse>;
 }
 
 export const SwapForm = (props: Props) => {
-  const { tokensList, dataMethod, approveMethod, swapMethod } = props;
+  const { tokensList, dataMethod, approveMethod } = props;
   const { connected, publicKey } = useWallet();
   const [tokenBalanceList, setTokenBalanceList] = useState<CTokenBalance[]>([]);
   const { connection } = useConnection();
@@ -165,23 +158,34 @@ export const SwapForm = (props: Props) => {
       pancakeRouter,
       chainId
     };
-    const transactions = await dataMethod(params);
+    const transactionsData = await dataMethod(params);
     const approveInstruction = await approveMethod(connection, solanaUser, neonEvmProgram, tokenFrom, amountFrom);
     const preparatorySolanaTransactions: PreparatorySolanaTransaction[] = [];
-    const instructions: TransactionInstruction[] = [];
+    const solanaInstructions: TransactionInstruction[] = [];
     if (approveInstruction) {
       preparatorySolanaTransactions.push({
         instructions: [prepareSolanaInstruction(approveInstruction!)]
       });
-      instructions.push(approveInstruction);
+      solanaInstructions.push(approveInstruction);
     }
-    const transactionGas = await estimateScheduledGas(proxyApi, {
-      scheduledSolanaPayer: solanaUser.publicKey.toBase58(),
-      transactions,
+    const transactionGas = await proxyApi.estimateScheduledTransactionGas({
+      solanaPayer: solanaUser.publicKey,
+      transactions: transactionsData,
       preparatorySolanaTransactions
     });
-    const method = (params: SwapTokenCommonData) => swapMethod(params, transactions, transactionGas, instructions);
-    return method({ ...params, transactionGas });
+
+    const { transactions, scheduledTransaction } = await proxyApi.createMultipleTransaction({
+      transactionGas,
+      transactionsData,
+      solanaInstructions
+    });
+
+    const instruction = await createATAInstruction(connection, solanaUser, tokenTo);
+    if (instruction) {
+      scheduledTransaction.instructions.unshift(instruction);
+    }
+
+    return { transactions, scheduledTransaction };
   };
 
   const cancelTransaction = async (_: ScheduledTransactionStatus) => {
@@ -209,7 +213,7 @@ export const SwapForm = (props: Props) => {
 
       if (transactions.length > 0) {
         await delay(1e3);
-        const resultsHash = await sendRawScheduledTransactions(proxyApi.rpcUrl, transactions.map(t => t.serialize()));
+        const resultsHash = await proxyApi.sendRawScheduledTransactions(transactions.map(t => t.serialize()));
         logJson(resultsHash);
 
         const start = Date.now();
@@ -261,7 +265,7 @@ export const SwapForm = (props: Props) => {
         method: swapTokens,
         data: undefined
       };
-      transactionsRef.current = [/*approveState, */swapTokensState];
+      transactionsRef.current = [swapTokensState];
       addTransactionStates(transactionsRef.current);
       await executeTransactionsStates(transactionsRef.current);
       setLoading(false);
@@ -299,7 +303,7 @@ export const SwapForm = (props: Props) => {
     });
   };
 
-  const getTokenBalance = async (token: SPLToken): Promise<TokenAmount | undefined> => {
+  const getTokenBalance = async (token: CSPLToken): Promise<TokenAmount | undefined> => {
     if (publicKey) {
       try {
         const tokenMint = new PublicKey(token.address_spl);

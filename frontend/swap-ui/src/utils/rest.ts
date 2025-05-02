@@ -1,4 +1,4 @@
-import { HexString, log, RPCResponse, uuid } from '@neonevm/solana-sign';
+import { log } from '@neonevm/solana-sign';
 
 export function prepareHeaders(headersData: Record<string, string>): [Headers, string] {
   const headers: Headers = new Headers();
@@ -56,20 +56,4 @@ export async function get<T = never>(url = '', headersData: Record<string, strin
     return JSON.parse(result);
   }
   return {} as T;
-}
-
-export interface RPCRequest {
-  id: number | string;
-  jsonrpc: string;
-  method: string;
-  params: unknown[];
-}
-
-export async function sendRawScheduledTransactions(url: string, transactions: HexString[]): Promise<RPCResponse<HexString>[]> {
-  const method = `neon_sendRawScheduledTransaction`;
-  const body: RPCRequest[] = transactions.map(tx => {
-    const id = uuid();
-    return { id, jsonrpc: '2.0', method, params: [tx] };
-  });
-  return post<RPCRequest[]>(url, body);
 }

@@ -14,7 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-    "@neonevm/solana-sign": "^0.1.9",
+    "@neonevm/solana-sign": "^0.2.0",
     "@neonevm/token-transfer-core": "^4.4.2",
     "@neonevm/token-transfer-ethers": "^4.4.2",
     "@pythnetwork/client": "^2.22.0",
