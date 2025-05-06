@@ -54,8 +54,8 @@ The process flow involves:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/neon-solana-signature-demo.git
-cd neon-solana-signature-demo
+git clone https://github.com/neonlabsorg/neon-solana-native-swap-demo.git
+cd neon-solana-native-swap-demo
 ```
 
 2. Configure environment variables:
