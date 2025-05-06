@@ -1,8 +1,8 @@
 {
   "display": "standalone",
-  "description": "The NeonPass is a service for transferring tokens from Solana to Neon EVM and back.",
-  "name": "Neon Solana Native Swap Demo dApp",
-  "short_name": "NeonSwap",
+  "description": "The Neon Solana Native Swap Demo is a service for performing token swap in Neon EVM via Solana signer library.",
+  "name": "Neon Solana Native Swap Demo",
+  "short_name": "NeonSolanaNativeSwapDemo",
   "start_url": ".",
   "theme_color": "#0C111D",
   "background_color": "#0C111D",
