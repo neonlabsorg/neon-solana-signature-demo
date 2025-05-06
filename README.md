@@ -1,4 +1,4 @@
-# Neon Solana Signature Demo
+# Neon Solana Native Swap Demo
 
 A demonstration of token swaps in Neon EVM using Solana signature verification, showcasing how users with Solana wallets can interact with EVM smart contracts on Neon EVM.
 
